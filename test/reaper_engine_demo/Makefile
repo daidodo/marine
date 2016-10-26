@@ -6,7 +6,7 @@ export MY_FLAGS
 export MY_LIBS
 #############################
 
-MARINE_DIR := ../marine
+MARINE_DIR := ../../marine
 
 # tcmalloc
 #MY_LIBS += /usr/local/lib/libtcmalloc_minimal.a
