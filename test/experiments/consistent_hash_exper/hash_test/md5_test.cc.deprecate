@@ -1,0 +1,10 @@
+#include "comm.h"
+#include <marine/tools/ssl.hh>
+#include <marine/tools/other.hh>
+
+static inline uint32_t Hash32bit_Simple(uint32_t key)
+{
+    return *reinterpret_cast<const uint32_t *>(marine::tools::Md5(reinterpret_cast<const char *>(&key), sizeof key).c_str() + 12);
+}
+
+#include "main.h"
