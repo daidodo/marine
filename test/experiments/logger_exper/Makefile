@@ -2,6 +2,8 @@ CXXFLAGS := -g
 
 OBJ := main.o logger.o
 
+all: test
+
 test: $(OBJ)
 	$(CXX) -o $@ $(CXXFLAGS) $(OBJ)
 

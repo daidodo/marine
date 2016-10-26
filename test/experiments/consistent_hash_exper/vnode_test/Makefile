@@ -1,6 +1,6 @@
 TARGET = $(CC_SRC:.cc=)
 
-CXXFLAGS := -O2 -DNDEBUG -I../../..
+CXXFLAGS := -O2 -DNDEBUG -I../../../..
 LIBS :=
 CFLAGS := $(CXXFLAGS)
 

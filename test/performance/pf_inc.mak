@@ -10,7 +10,7 @@ TARGET_GPROF = $(TARGET_SRC:_pftest.cc=_pftest.gprof)
 TARGET_GPERF = $(TARGET_SRC:_pftest.cc=_pftest.gperf)
 TARGET_PERF = $(TARGET_SRC:_pftest.cc=_pftest.perf)
 
-MAIN_DIR := ../..
+MAIN_DIR := ../../..
 MARINE_DIR := $(MAIN_DIR)/marine
 
 INCLUDE := $(MY_INCLUDE) -I$(MAIN_DIR)

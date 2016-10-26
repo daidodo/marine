@@ -9,7 +9,7 @@
 SO_TARGET := ../libmy.so
 TARGET = $(TARGET_OBJ:.o=)
 
-MAIN_DIR := ../..
+MAIN_DIR := ../../..
 MARINE_DIR := $(MAIN_DIR)/marine
 
 ifeq ($(findstring release, $(MAKECMDGOALS)), release)

@@ -7,7 +7,7 @@
 
 TARGET = $(TARGET_OBJ:.o=)
 
-MAIN_DIR := ../..
+MAIN_DIR := ../../..
 GTEST_DIR := ../gtest
 RUN := ../run_test.sh
 

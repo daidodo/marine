@@ -7,7 +7,7 @@
 # NOTE: use '$(MAKE) -e' to override local variables
 #############################
 
-MARINE_DIR := ../marine
+MARINE_DIR := ../../marine
 
 TARGET = libreaper.a
 

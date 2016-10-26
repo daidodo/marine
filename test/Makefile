@@ -1,7 +1,7 @@
 TEST_DIRS := functionality performance crash_handler experiments
 DEMO_DIRS := $(wildcard *_demo/)
 ENGINE_DIRS := $(wildcard *_engine/)
-MARINE_DIR := marine
+MARINE_DIR := ../marine
 MARINE_SRC := $(shell find $(MARINE_DIR) -name "*.hh")
 
 CPPCHECK := cppcheck -D__GNUC__ -D__cplusplus -f --enable=all --inline-suppr --suppress=unusedFunction
