@@ -22,9 +22,14 @@
 #include <sched.h>
 
 #define SPINLOCK_INITIALIZER 0
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef volatile uint64_t spinlock_t;
 
-inline void spinlock_lock(spinlock_t* pLock)
+static void spinlock_lock(spinlock_t* pLock)
 {
 	uint64_t nNonLock = SPINLOCK_INITIALIZER, nLock = 1;
 	while ( !CAS_64bit((uint64_t*)pLock, nNonLock, nLock) )
@@ -33,9 +38,13 @@ inline void spinlock_lock(spinlock_t* pLock)
 	}
 }
 
-inline void spinlock_unlock(spinlock_t* pLock)
+static void spinlock_unlock(spinlock_t* pLock)
 {
 	*pLock = SPINLOCK_INITIALIZER;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
