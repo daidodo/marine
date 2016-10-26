@@ -22,6 +22,7 @@
 #include <sys/param.h>      //NOFILE
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include <signal.h>         //signal
 #include <stdint.h>
 #include <unistd.h>
