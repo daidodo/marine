@@ -744,6 +744,7 @@ TEST(__OutStream, offset_value)
     __Buff buf;
     __OutStream ds(0, false);
     ASSERT_EQ(0, ds.status());
+    ds.skip(10);
     const size_t old = ds.cur();
     ASSERT_EQ(&ds, &(ds<<Manip::offset_value(3, v)));
     ASSERT_EQ(0, ds.status());
@@ -751,7 +752,7 @@ TEST(__OutStream, offset_value)
 
     ASSERT_TRUE(ds.finish(buf));
     const int x = *reinterpret_cast<const int *>(&buf[0] + 3);
-    ASSERT_EQ(v, x);
+    ASSERT_EQ(v, x)<<"buf.size()="<<buf.size()<<endl;;
 }
 
 TEST(__OutStream, protobuf)
