@@ -8,6 +8,11 @@ const std::string ifname = "lo";
 
 static bool hasNet;
 
+bool IsLocalhost(string port, string str)
+{
+    return ("127.0.0.1:" + port == str || "[::1]:" + port == str);
+}
+
 struct CEnv : public ::testing::Environment
 {
     void SetUp(){
@@ -186,7 +191,7 @@ TEST(CSockAddr, ctor_1)
 
         CSockAddr addr2("localhost", serv);
         ASSERT_TRUE(addr2.valid());
-        ASSERT_EQ("127.0.0.1:" + serv, addr2.toString());
+        ASSERT_TRUE(IsLocalhost(serv, addr2.toString()))<<"addr2="<<addr2.toString()<<endl;
 
         CSockAddr addr2e("localhosty", serv);
         ASSERT_FALSE(addr2e.valid());
@@ -291,7 +296,7 @@ TEST(CSockAddr, ctor_1)
 
         CSockAddr addr2("localhost", serv);
         ASSERT_TRUE(addr2.valid());
-        ASSERT_EQ("127.0.0.1:" + port, addr2.toString());
+        ASSERT_TRUE(IsLocalhost(port, addr2.toString()))<<"addr2="<<addr2.toString()<<endl;
 
         CSockAddr addr2e("localhosty", serv);
         ASSERT_FALSE(addr2e.valid());
@@ -317,7 +322,7 @@ TEST(CSockAddr, ctor_1)
 
         CSockAddr addr5("", serv);
         ASSERT_TRUE(addr5.valid());
-        ASSERT_TRUE(("127.0.0.1:" + port == addr5.toString()) || ("[::1]:" + port == addr5.toString()));
+        ASSERT_TRUE(IsLocalhost(port, addr5.toString()));
 
         CSockAddr addr6("0.0.0.0", serv);
         ASSERT_TRUE(addr6.valid());
@@ -325,7 +330,7 @@ TEST(CSockAddr, ctor_1)
 
         CSockAddr addr7(std::string(), serv);
         ASSERT_TRUE(addr7.valid());
-        ASSERT_TRUE(("127.0.0.1:" + port == addr7.toString()) || ("[::1]:" + port == addr7.toString()));
+        ASSERT_TRUE(IsLocalhost(port, addr7.toString()));
 
         CSockAddr addr8("2001:DB8:2de::e13", serv);
         ASSERT_TRUE(addr8.valid());
@@ -396,7 +401,7 @@ TEST(CSockAddr, ctor_1)
 
         CSockAddr addr2("localhost", serv);
         ASSERT_TRUE(addr2.valid());
-        ASSERT_EQ("127.0.0.1:" + port, addr2.toString());
+        ASSERT_TRUE(IsLocalhost(port, addr2.toString()));
 
         CSockAddr addr2e("localhosty", serv);
         ASSERT_FALSE(addr2e.valid());
@@ -422,7 +427,7 @@ TEST(CSockAddr, ctor_1)
 
         CSockAddr addr5("", serv);
         ASSERT_TRUE(addr5.valid());
-        ASSERT_TRUE(("127.0.0.1:" + port == addr5.toString()) || ("[::1]:" + port == addr5.toString()));
+        ASSERT_TRUE(IsLocalhost(port, addr5.toString()));
 
         CSockAddr addr6("0.0.0.0", serv);
         ASSERT_TRUE(addr6.valid());
@@ -430,7 +435,7 @@ TEST(CSockAddr, ctor_1)
 
         CSockAddr addr7(std::string(), serv);
         ASSERT_TRUE(addr7.valid());
-        ASSERT_TRUE(("127.0.0.1:" + port == addr7.toString()) || ("[::1]:" + port == addr7.toString()));
+        ASSERT_TRUE(IsLocalhost(port, addr7.toString()));
 
         CSockAddr addr8("2001:DB8:2de::e13", serv);
         ASSERT_TRUE(addr8.valid());
@@ -450,7 +455,7 @@ TEST(CSockAddr, ctor_1)
 
         CSockAddr addr2("localhost", serv);
         ASSERT_TRUE(addr2.valid());
-        ASSERT_EQ("127.0.0.1:" + port, addr2.toString());
+        ASSERT_TRUE(IsLocalhost(port, addr2.toString()));
 
         CSockAddr addr2e("localhosty", serv);
         ASSERT_FALSE(addr2e.valid());
@@ -1128,7 +1133,7 @@ TEST(CSockAddr, setIp_str_3)
         ASSERT_TRUE(addr.setIp("localhost"));
         ASSERT_TRUE(addr.valid());
         ASSERT_NE("unknown", addr.toString());
-        ASSERT_EQ(old, addr.toString());
+        ASSERT_TRUE(IsLocalhost(port, addr.toString()));
     }{  //2e
         CSockAddr addr(host, serv);
         ASSERT_TRUE(addr.valid());
