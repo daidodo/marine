@@ -18,7 +18,7 @@
         IsTextGb2312
 */
 
-#include <cstring>      //basename
+#include <libgen.h>     //basename
 #include "../impl/tools_string_impl.hh"
 
 NS_SERVER_BEGIN
@@ -63,7 +63,7 @@ namespace tools
     {
         if(!fname)
             return NULL;
-        return ::basename(fname);
+        return ::basename(const_cast<char *>(fname));
     }
 
     //获取文件主名（去掉后缀名）
