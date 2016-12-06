@@ -1,3 +1,4 @@
-this my test
-add some words
-Hello
+This is a C++ library for Linux Networking Development.
+
+Under construction ...
+
