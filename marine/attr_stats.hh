@@ -18,7 +18,7 @@
 
 /// @file
 /// Program statistics and profiling.
-/// APIs for profiling program based on lock-free counters.
+/// APIs for profiling program based on lock-free, thread-safe counters.
 /// @n Each counter is called an @em attribute, identified by an positive integer. You can put as
 /// many attributes in program as you want.
 
