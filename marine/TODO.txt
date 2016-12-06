@@ -1,4 +1,5 @@
 ---功能---
+C++14 support
 
 (DONE)variant128 encode support
 自适应log, freq control
