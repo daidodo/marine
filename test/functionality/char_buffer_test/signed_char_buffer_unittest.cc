@@ -4,7 +4,6 @@
 
 
 typedef signed char    Char;
-#define __CharP  (Char *)
-#define type    signed_char
+#define name    CharBuffer_signed_char
 
 #include "comm.h"

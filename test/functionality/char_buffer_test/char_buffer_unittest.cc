@@ -4,7 +4,6 @@
 
 
 typedef char    Char;
-#define __CharP (Char *)
-#define type    char
+#define name    CharBuffer_char
 
 #include "comm.h"

@@ -4,7 +4,6 @@
 
 
 typedef unsigned char    Char;
-#define __CharP  (Char *)
-#define type    unsigned_char
+#define name    CharBuffer_unsigned_char
 
 #include "comm.h"

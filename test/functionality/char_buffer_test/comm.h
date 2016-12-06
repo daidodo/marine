@@ -1,34 +1,82 @@
-#include <marine/tools/debug.hh>
+typedef CCharBuffer<Char> __Buffer;
 
-TEST(CharBuffer, type)
+Char str[100] = {'a','b', 'c', 'd', 'e', 'f', 'g'};
+size_t LEN = 7;
+
+TEST(name, ctor)
 {
-    typedef CCharBuffer<Char> __Buffer;
-    Char str[100] = {'a','b', 'c', 'd', 'e', 'f', 'g'};
-    //ctor
     __Buffer buf1;
-    __Buffer buf2(__CharP"abcdefg");
-    const __Buffer buf3(str, sizeof str, 7);
-    __Buffer buf4 = __CharP"abcdefg";
+    ASSERT_TRUE(buf1.empty());
+
+    __Buffer buf2(str);
+    ASSERT_EQ(LEN, buf2.size());
+
+    const __Buffer buf3(str, sizeof str);
+    ASSERT_TRUE(buf3.empty());
+
+    const __Buffer buf4(str, sizeof str, LEN);
+    ASSERT_EQ(LEN, buf4.size());
+
+    __Buffer buf5 = str;
+    ASSERT_EQ(LEN, buf5.size());
+}
+
+TEST(name, assign)
+{
+    __Buffer buf1, buf2;
+    ASSERT_TRUE(buf1.empty());
+    ASSERT_EQ(size_t(0), buf1.capacity());
+
+    ASSERT_EQ(&buf2, &(buf2.assign(buf1)));
+    ASSERT_TRUE(buf2.empty());
+    ASSERT_EQ(size_t(0), buf2.capacity());
+
+    ASSERT_EQ(&buf1, &(buf1.assign(str, sizeof str)));
+    ASSERT_TRUE(buf1.empty());
+    ASSERT_EQ(sizeof str, buf1.capacity());
+
+    ASSERT_EQ(&buf2, &(buf2.assign(buf1)));
+    ASSERT_TRUE(buf2.empty());
+    ASSERT_EQ(sizeof str, buf2.capacity());
+
+    ASSERT_EQ(&buf1, &(buf1.assign(str, sizeof str, LEN)));
+    ASSERT_EQ(LEN, buf1.size());
+    ASSERT_EQ(sizeof str, buf1.capacity());
+
+    ASSERT_EQ(&buf2, &(buf2.assign(buf1)));
+    ASSERT_EQ(LEN, buf2.size());
+    ASSERT_EQ(sizeof str, buf2.capacity());
+}
+
+#define __CharP (Char *)
+
+TEST(name, old)
+{
+    __Buffer buf1;
+    __Buffer buf2(str);
+    __Buffer buf3(str, sizeof str);
+    __Buffer buf4(str, sizeof str, LEN);
+
     ASSERT_FALSE(buf1 == buf2);
-    ASSERT_FALSE(buf2 != buf3)<<"buf2="<<tools::Dump(buf2)<<", buf3="<<tools::Dump(buf3);
-    ASSERT_FALSE(buf3 != buf4);
+    //ASSERT_FALSE(buf2 != buf3);
+    //ASSERT_FALSE(buf3 != buf4);
     ASSERT_FALSE(buf2 != buf4);
     ASSERT_FALSE(!buf1.empty());
     ASSERT_FALSE(7 != buf2.size() || 7 != buf2.capacity());
     ASSERT_FALSE(sizeof str != buf3.capacity());
-    ASSERT_FALSE(7 != buf4.capacity());
+    //ASSERT_FALSE(7 != buf4.capacity());
     ASSERT_FALSE(7 != buf4.length());
     //assign
     buf1.assign(buf3);
     ASSERT_FALSE(buf1 != buf3);
     ASSERT_FALSE(sizeof str != buf1.capacity());
     buf2.assign(str, sizeof str, 7);
-    ASSERT_FALSE(buf2 != buf3);
+    //ASSERT_FALSE(buf2 != buf3);
     ASSERT_FALSE(sizeof str != buf2.capacity());
     //copy
     Char str2[8] = {};
     ASSERT_FALSE(7 != buf2.copy(str2, 7));
-    ASSERT_FALSE(0 != strcmp((const char *)str, (const char *)str2));
+    ASSERT_EQ(0, memcmp(str, str2, sizeof str2));
     //begin, end
     __Buffer::value_type ch = 'A';
     typedef __Buffer::iterator __Iter;
@@ -79,8 +127,9 @@ TEST(CharBuffer, type)
         buf2.push_back(ch + i);
     ASSERT_FALSE(buf2 != buf4);
     //swap
+    buf4.assign(str2, sizeof str2, sizeof str2);
     buf2.swap(buf4);
-    ASSERT_FALSE(str == &buf2[0]);
+    ASSERT_NE(str, &buf2[0]);
     ASSERT_FALSE(str != &buf4[0]);
     swap(buf4, buf2);
     ASSERT_FALSE(str == &buf4[0]);
