@@ -29,11 +29,11 @@
 
 NS_SERVER_BEGIN
 
-/// CAtomicHashTable can be used in multi-thread or multi-process programs without a lock.
+/// A lock-free hash table that can be used in multi-thread or multi-process programs.
 /// A common usage of CAtomicHashTable is for multiple threads or processes to operate on the same
 /// hash table efficiently.
 /// @n It must reside in continuous memory pre-allocated by the user.
-/// Hence, key and value of CAtomicHashTable must be [trivially copyable]
+/// Hence, key and value types must be [trivially copyable]
 /// (http://en.cppreference.com/w/cpp/types/is_trivially_copyable), i.e. can be copied using @c
 /// std::memcpy.
 /// @par Multi-Thread/Process Access Safety Guide
@@ -162,6 +162,8 @@ public:
     /// Test if current object is inilialized.
     /// @return @c true if current object is inilialized; otherwise @c false
     bool valid() const{return (NULL != head_ && !rows_.empty());}
+    /// @name Capacity
+    //@{
     /// Get number of rows in hash table.
     /// @return
     ///   @li Numer of rows
@@ -196,6 +198,9 @@ public:
                 return false;
         return true;
     }
+    //@}
+    /// @name Brief Info
+    //@{
     /// Get creation time of the hash table.
     /// @return
     ///   @li Creation time of this hash table
@@ -222,6 +227,9 @@ public:
         oss<<"}";
         return oss.str();
     }
+    //@}
+    /// @name Data Access
+    //@{
     /// Insert a key-value pair into the hash table.
     /// If @c key already exists, this function may result in multiple instances of @c key in the
     /// hash table.
@@ -372,6 +380,7 @@ public:
             for(__Iter it = rows_.begin();it != rows_.end();++it)
                 it->clear();
     }
+    //@}
 private:
     static size_t alignLen(size_t len){return (len + 7) / 8 * 8;}
     static size_t bufSize(int row, size_t realCapa, size_t valueSz){
