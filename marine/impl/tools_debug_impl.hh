@@ -2,32 +2,36 @@
 #define DOZERG_TOOLS_DEBUG_IMPL_H_20130320
 
 #include <stdint.h>
-#include <iomanip>  //std::setw
+#include <iomanip>      //std::setw
 #include <string>
+#include <algorithm>    //std::reverse
 #include "../to_string.hh"
 
 NS_IMPL_BEGIN
 
 struct CDebug
 {
-    static std::string DumpHex(const char * v, size_t sz, char sep, bool hasLen){
+    template<typename CharT>
+    static std::string DumpChar(CharT ch){
         const char DIGIT[] = "0123456789ABCDEF";
+        std::string ret;
+        for(size_t i = 0;ch != 0 && i < sizeof ch * 2;++i, ch >>= 4)
+            ret.push_back(DIGIT[ch & 0xF]);
+        ret.resize(sizeof ch * 2, '0');
+        std::reverse(ret.begin(), ret.end());
+        return ret;
+    }
+    template<typename CharT>
+    static std::string DumpHex(const CharT * v, size_t sz, char sep, bool hasLen){
         if(!v)
             return std::string("(NULL)");
-        std::string ret;
-        if(hasLen){
-            CToString oss;
+        CToString oss;
+        if(hasLen)
             oss<<"("<<sz<<")";
-            ret = oss.str();
-        }
-        ret.reserve(ret.size() + (2 + (sep ? 1 : 0)) * sz);
-        for(size_t i = 0;i < sz;++i){
+        for(size_t i = 0;i < sz;oss<<DumpChar(v[i++]))
             if(i && sep)
-                ret.push_back(sep);
-            ret.push_back(DIGIT[(v[i] >> 4) & 0xF]);
-            ret.push_back(DIGIT[v[i] & 0xF]);
-        }
-        return ret;
+                oss<<sep;
+        return oss.str();
     }
     static std::string DumpStr(const char * v, size_t sz, char replace, bool hasLen){
         const char TRAN_CHAR = '\\';

@@ -9,71 +9,79 @@ struct A
     }
 };
 
+const char * SRC = "a\03\t\0\327bc";
+const wchar_t WSRC[] = {'a', 3, '\t', 0, -1, 'b', 'c'};
+const size_t LEN = 7;
+std::string s(SRC, LEN);
+std::vector<char> v(s.begin(), s.end());
+
 TEST(DumpHex, v)
 {
-    ASSERT_EQ("(3)61 62 63", tools::DumpHex("abc", 3));
-    ASSERT_EQ("(3)61 62 63", tools::DumpHex((const unsigned char *)"abc", 3));
-    ASSERT_EQ("(3)61 62 63", tools::DumpHex((const signed char *)"abc", 3));
+    const char * RES = "(7)61 03 09 00 D7 62 63";
+    const char * WRES = "(7)00000061 00000003 00000009 00000000 FFFFFFFF 00000062 00000063";
+    ASSERT_EQ(RES, tools::DumpHex(SRC, LEN));
+    ASSERT_EQ(RES, tools::DumpHex((const unsigned char *)SRC, LEN));
+    ASSERT_EQ(RES, tools::DumpHex((const signed char *)SRC, LEN));
+    ASSERT_EQ(WRES, tools::DumpHex(WSRC, LEN));
 
-    std::string s("abc");
-    std::vector<char> v(s.begin(), s.end());
-    ASSERT_EQ("(3)61 62 63", tools::DumpHex(s));
-    ASSERT_EQ("(3)61 62 63", tools::DumpHex(v));
+    ASSERT_EQ(RES, tools::DumpHex(s));
+    ASSERT_EQ(RES, tools::DumpHex(v));
     {
-        CCharBuffer<const char> cb(s.c_str());
-        ASSERT_EQ("(3)61 62 63", tools::DumpHex(cb));
+        CCharBuffer<const char> cb(SRC, LEN, LEN);
+        ASSERT_EQ(RES, tools::DumpHex(cb));
     }{
-        CCharBuffer<const unsigned char> cb((const unsigned char *)s.c_str());
-        ASSERT_EQ("(3)61 62 63", tools::DumpHex(cb));
+        CCharBuffer<const unsigned char> cb((const unsigned char *)SRC, LEN, LEN);
+        ASSERT_EQ(RES, tools::DumpHex(cb));
     }{
-        CCharBuffer<const signed char> cb((const signed char *)s.c_str());
-        ASSERT_EQ("(3)61 62 63", tools::DumpHex(cb));
+        CCharBuffer<const signed char> cb((const signed char *)SRC, LEN, LEN);
+        ASSERT_EQ(RES, tools::DumpHex(cb));
     }{
-        CCharBuffer<char> cb(&s[0]);
-        ASSERT_EQ("(3)61 62 63", tools::DumpHex(cb));
+        CCharBuffer<char> cb(&s[0], LEN, LEN);
+        ASSERT_EQ(RES, tools::DumpHex(cb));
     }{
-        CCharBuffer<unsigned char> cb((unsigned char *)&s[0]);
-        ASSERT_EQ("(3)61 62 63", tools::DumpHex(cb));
+        CCharBuffer<unsigned char> cb((unsigned char *)&s[0], LEN, LEN);
+        ASSERT_EQ(RES, tools::DumpHex(cb));
     }{
-        CCharBuffer<signed char> cb((signed char *)&s[0]);
-        ASSERT_EQ("(3)61 62 63", tools::DumpHex(cb));
+        CCharBuffer<signed char> cb((signed char *)&s[0], LEN, LEN);
+        ASSERT_EQ(RES, tools::DumpHex(cb));
     }
 }
 
 TEST(DumpHex, sep)
 {
-    ASSERT_EQ("(3)61.62.63", tools::DumpHex("abc", 3, '.'));
-    ASSERT_EQ("(3)61.62.63", tools::DumpHex((const unsigned char *)"abc", 3, '.'));
-    ASSERT_EQ("(3)61.62.63", tools::DumpHex((const signed char *)"abc", 3, '.'));
+    const char SEP = '.';
+    const char * RES = "(7)61.03.09.00.D7.62.63";
+    const char * WRES = "(7)00000061.00000003.00000009.00000000.FFFFFFFF.00000062.00000063";
+    ASSERT_EQ(RES, tools::DumpHex(SRC, LEN, SEP));
+    ASSERT_EQ(RES, tools::DumpHex((const unsigned char *)SRC, LEN, SEP));
+    ASSERT_EQ(RES, tools::DumpHex((const signed char *)SRC, LEN, SEP));
+    ASSERT_EQ(WRES, tools::DumpHex(WSRC, LEN, SEP));
 
-    std::string s("abc");
-    std::vector<char> v(s.begin(), s.end());
-    ASSERT_EQ("(3)61.62.63", tools::DumpHex(s, '.'));
-    ASSERT_EQ("(3)61.62.63", tools::DumpHex(v, '.'));
+    ASSERT_EQ(RES, tools::DumpHex(s, SEP));
+    ASSERT_EQ(RES, tools::DumpHex(v, SEP));
 }
 
 TEST(DumpHex, hasLen)
 {
-    ASSERT_EQ("61.62.63", tools::DumpHex("abc", 3, '.', false));
-    ASSERT_EQ("61.62.63", tools::DumpHex((const unsigned char *)"abc", 3, '.', false));
-    ASSERT_EQ("61.62.63", tools::DumpHex((const signed char *)"abc", 3, '.', false));
+    const char SEP = '.';
+    const char * RES = "61.03.09.00.D7.62.63";
+    const char * WRES = "00000061.00000003.00000009.00000000.FFFFFFFF.00000062.00000063";
+    ASSERT_EQ(RES, tools::DumpHex(SRC, LEN, SEP, false));
+    ASSERT_EQ(RES, tools::DumpHex((const unsigned char *)SRC, LEN, SEP, false));
+    ASSERT_EQ(RES, tools::DumpHex((const signed char *)SRC, LEN, SEP, false));
+    ASSERT_EQ(WRES, tools::DumpHex(WSRC, LEN, SEP, false));
 
-    std::string s("abc");
-    std::vector<char> v(s.begin(), s.end());
-    ASSERT_EQ("61.62.63", tools::DumpHex(s, '.', false));
-    ASSERT_EQ("61.62.63", tools::DumpHex(v, '.', false));
+    ASSERT_EQ(RES, tools::DumpHex(s, SEP, false));
+    ASSERT_EQ(RES, tools::DumpHex(v, SEP, false));
 }
 
 TEST(DumpStr, v)
 {
-    const char * SRC = "a\03\t\0bc";
-    const char * RES = "(6)a.\\t\\0bc";
-    ASSERT_EQ(RES, tools::DumpStr(SRC, 6));
-    ASSERT_EQ(RES, tools::DumpStr((const unsigned char *)SRC, 6));
-    ASSERT_EQ(RES, tools::DumpStr((const signed char *)SRC, 6));
+    const char * RES = "(7)a.\\t\\0.bc";
+    ASSERT_EQ(RES, tools::DumpStr(SRC, LEN));
+    ASSERT_EQ(RES, tools::DumpStr((const unsigned char *)SRC, LEN));
+    ASSERT_EQ(RES, tools::DumpStr((const signed char *)SRC, LEN));
 
-    std::string s(SRC, 6);
-    std::vector<char> v(s.begin(), s.end());
     ASSERT_EQ(RES, tools::DumpStr(s));
     ASSERT_EQ(RES, tools::DumpStr(v));
     {
@@ -99,89 +107,78 @@ TEST(DumpStr, v)
 
 TEST(DumpStr, replace)
 {
-    ASSERT_EQ("(6)a \\t\\0bc", tools::DumpStr("a\03\t\0bc", 6, ' '));
-    ASSERT_EQ("(6)a \\t\\0bc", tools::DumpStr((const unsigned char *)"a\03\t\0bc", 6, ' '));
-    ASSERT_EQ("(6)a \\t\\0bc", tools::DumpStr((const signed char *)"a\03\t\0bc", 6, ' '));
+    const char REP = ' ';
+    const char * RES = "(7)a \\t\\0 bc";
+    ASSERT_EQ(RES, tools::DumpStr(SRC, LEN, REP));
+    ASSERT_EQ(RES, tools::DumpStr((const unsigned char *)SRC, LEN, REP));
+    ASSERT_EQ(RES, tools::DumpStr((const signed char *)SRC, LEN, REP));
 
-    std::string s("a\03\t\0bc", 6);
-    std::vector<char> v(s.begin(), s.end());
-    ASSERT_EQ("(6)a \\t\\0bc", tools::DumpStr(s, ' '));
-    ASSERT_EQ("(6)a \\t\\0bc", tools::DumpStr(v, ' '));
+    ASSERT_EQ(RES, tools::DumpStr(s, REP));
+    ASSERT_EQ(RES, tools::DumpStr(v, REP));
 }
 
 TEST(DumpStr, hasLen)
 {
-    ASSERT_EQ("a \\t\\0bc", tools::DumpStr("a\03\t\0bc", 6, ' ', false));
-    ASSERT_EQ("a \\t\\0bc", tools::DumpStr((const unsigned char *)"a\03\t\0bc", 6, ' ', false));
-    ASSERT_EQ("a \\t\\0bc", tools::DumpStr((const signed char *)"a\03\t\0bc", 6, ' ', false));
+    const char REP = ' ';
+    const char * RES = "a \\t\\0 bc";
+    ASSERT_EQ(RES, tools::DumpStr(SRC, LEN, REP, false));
+    ASSERT_EQ(RES, tools::DumpStr((const unsigned char *)SRC, LEN, REP, false));
+    ASSERT_EQ(RES, tools::DumpStr((const signed char *)SRC, LEN, REP, false));
 
-    std::string s("a\03\t\0bc", 6);
-    std::vector<char> v(s.begin(), s.end());
-    ASSERT_EQ("a \\t\\0bc", tools::DumpStr(s, ' ', false));
-    ASSERT_EQ("a \\t\\0bc", tools::DumpStr(v, ' ', false));
+    ASSERT_EQ(RES, tools::DumpStr(s, REP, false));
+    ASSERT_EQ(RES, tools::DumpStr(v, REP, false));
 }
 
 TEST(DumpVal, v)
 {
-    const char * SRC = "a\t\223bc";
-    const char * RES = "(5)a\\t\\223bc";
-    ASSERT_EQ(RES, tools::DumpVal(SRC, 5));
-    ASSERT_EQ(RES, tools::DumpVal((const unsigned char *)SRC, 5));
-    ASSERT_EQ(RES, tools::DumpVal((const signed char *)SRC, 5));
+    const char * RES = "(7)a\\003\\t\\0\\327bc";
+    ASSERT_EQ(RES, tools::DumpVal(SRC, LEN));
+    ASSERT_EQ(RES, tools::DumpVal((const unsigned char *)SRC, LEN));
+    ASSERT_EQ(RES, tools::DumpVal((const signed char *)SRC, LEN));
 
-    std::string s(SRC, 5);
-    std::vector<char> v(s.begin(), s.end());
     ASSERT_EQ(RES, tools::DumpVal(s));
     ASSERT_EQ(RES, tools::DumpVal(v));
     {
-        CCharBuffer<const char> cb(s.c_str());
+        CCharBuffer<const char> cb(SRC, LEN, LEN);
         ASSERT_EQ(RES, tools::DumpVal(cb));
     }{
-        CCharBuffer<const unsigned char> cb((const unsigned char *)s.c_str());
+        CCharBuffer<const unsigned char> cb((const unsigned char *)SRC, LEN, LEN);
         ASSERT_EQ(RES, tools::DumpVal(cb));
     }{
-        CCharBuffer<const signed char> cb((const signed char *)s.c_str());
+        CCharBuffer<const signed char> cb((const signed char *)SRC, LEN, LEN);
         ASSERT_EQ(RES, tools::DumpVal(cb));
     }{
-        CCharBuffer<char> cb(&s[0]);
+        CCharBuffer<char> cb(&s[0], LEN, LEN);
         ASSERT_EQ(RES, tools::DumpVal(cb));
     }{
-        CCharBuffer<unsigned char> cb((unsigned char *)&s[0]);
+        CCharBuffer<unsigned char> cb((unsigned char *)&s[0], LEN, LEN);
         ASSERT_EQ(RES, tools::DumpVal(cb));
     }{
-        CCharBuffer<signed char> cb((signed char *)&s[0]);
+        CCharBuffer<signed char> cb((signed char *)&s[0], LEN, LEN);
         ASSERT_EQ(RES, tools::DumpVal(cb));
     }
 }
 
 TEST(DumpVal, base)
 {
-    const size_t LEN = 5;
-    const char * const STR = "a\t\223bc";
-    const char * const RES = "(5)a\\t\\x93bc";
+    const char * const RES = "(7)a\\x03\\t\\0\\xD7bc";
 
-    ASSERT_EQ(RES, tools::DumpVal(STR, LEN, 16));
-    ASSERT_EQ(RES, tools::DumpVal((const unsigned char *)STR, LEN, 16));
-    ASSERT_EQ(RES, tools::DumpVal((const signed char *)STR, LEN, 16));
+    ASSERT_EQ(RES, tools::DumpVal(SRC, LEN, 16));
+    ASSERT_EQ(RES, tools::DumpVal((const unsigned char *)SRC, LEN, 16));
+    ASSERT_EQ(RES, tools::DumpVal((const signed char *)SRC, LEN, 16));
 
-    std::string s(STR, LEN);
-    std::vector<char> v(s.begin(), s.end());
     ASSERT_EQ(RES, tools::DumpVal(s, 16));
     ASSERT_EQ(RES, tools::DumpVal(v, 16));
 }
 
 TEST(DumpVal, hasLen)
 {
-    const size_t LEN = 5;
-    const char * const STR = "a\t\223bc";
-    const char * const RES = "a\\t\\x93bc";
+    const char * const RES = "a\\x03\\t\\0\\xD7bc";
 
-    ASSERT_EQ(RES, tools::DumpVal(STR, LEN, 16, false));
-    ASSERT_EQ(RES, tools::DumpVal((const unsigned char *)STR, LEN, 16, false));
-    ASSERT_EQ(RES, tools::DumpVal((const signed char *)STR, LEN, 16, false));
+    ASSERT_EQ(RES, tools::DumpVal(SRC, LEN, 16, false));
+    ASSERT_EQ(RES, tools::DumpVal((const unsigned char *)SRC, LEN, 16, false));
+    ASSERT_EQ(RES, tools::DumpVal((const signed char *)SRC, LEN, 16, false));
 
-    std::string s(STR, LEN);
-    std::vector<char> v(s.begin(), s.end());
     ASSERT_EQ(RES, tools::DumpVal(s, 16, false));
     ASSERT_EQ(RES, tools::DumpVal(v, 16, false));
 }

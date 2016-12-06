@@ -19,6 +19,7 @@
 
 NS_SERVER_BEGIN
 
+// TODO: wchar_t, char16_t, char32_t
 namespace tools
 {
     //得到数据v的16进制字符串表示
@@ -32,12 +33,17 @@ namespace tools
 
     inline std::string DumpHex(const signed char * v, size_t sz, char sep = ' ', bool hasLen = true)
     {
-        return DumpHex(reinterpret_cast<const char *>(v), sz, sep, hasLen);
+        return NS_IMPL::CDebug::DumpHex(v, sz, sep, hasLen);
     }
 
     inline std::string DumpHex(const unsigned char * v, size_t sz, char sep = ' ', bool hasLen = true)
     {
-        return DumpHex(reinterpret_cast<const char *>(v), sz, sep, hasLen);
+        return NS_IMPL::CDebug::DumpHex(v, sz, sep, hasLen);
+    }
+
+    inline std::string DumpHex(const wchar_t * v, size_t sz, char sep = ' ', bool hasLen = true)
+    {
+        return NS_IMPL::CDebug::DumpHex(v, sz, sep, hasLen);
     }
 
     //TODO: unit test
