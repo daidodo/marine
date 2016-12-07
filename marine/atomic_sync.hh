@@ -59,11 +59,11 @@ public:
         return add_fetch(const_cast<value_type *>(v), 0);
     }
     /// Set value atomically.
-    /// This function performs `*this = c`.
+    /// This function performs `{*this = c}`.
     /// @param c A Value
     void store(value_type c) volatile{swap(c);}
     /// Set value atomically.
-    /// This function performs `*v = c`.
+    /// This function performs `{*v = c}`.
     /// @param v Pointer to a value
     /// @param c A Value
     static void store(value_type * v, value_type c){
