@@ -1,24 +1,26 @@
 /*
- *  Copyright (c) 2016 Zhao DAI <daidodo@gmail.com>
+ * Copyright (c) 2016 Zhao DAI <daidodo@gmail.com>
  *
- *  This program is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or any
- *  later version.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or any
+ * later version.
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see accompanying file LICENSE.txt
- *  or <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see accompanying file LICENSE.txt
+ * or <http://www.gnu.org/licenses/>.
  */
 
-/// @file
-/// Lock-free and process/thread-safe hash table implementation.
-///
+/**
+ * @file
+ * @brief Lock-free and process/thread-safe hash table implementation.
+ * @author Zhao DAI
+ */
 
 #ifndef DOZERG_ATOMIC_HASH_TABLE_H_20130812
 #define DOZERG_ATOMIC_HASH_TABLE_H_20130812
@@ -174,7 +176,7 @@ public:
     /// Get capacity of the hash table.
     /// @return
     ///   @li Number of key-value pairs that this hash table can hold at most
-    ///   @li Or 0 if current object is NOT inilialized 
+    ///   @li Or 0 if current object is NOT inilialized
     size_t capacity() const{return (head_ ? head_->realCapa() : 0);}
     /// Get number of key-value pairs in a row.
     /// @param row Index of row, ranging from 0 to rowSize() - 1

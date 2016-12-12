@@ -1,10 +1,29 @@
+/*
+ * Copyright (c) 2016 Zhao DAI <daidodo@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or any
+ * later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see accompanying file LICENSE.txt
+ * or <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * @file
+ * @brief An STL-like encapsulation of byte array.
+ * @author Zhao DAI
+ */
+
 #ifndef DOZERG_CHAR_BUFFER_H_20121218
 #define DOZERG_CHAR_BUFFER_H_20121218
-
-/*
-    封装原始字符串数组，使其更接近stl的接口
-        CCharBuffer     对字节数据进行封装，提供类似std::string的接口
-//*/
 
 #include <cassert>
 #include <algorithm>
@@ -17,6 +36,15 @@
 
 NS_SERVER_BEGIN
 
+/**
+ * @brief Provide interfaces similar to std::string for raw byte array.
+ * CCharBuffer provides convenient interfaces, like @c begin/end, @c append, @c insert, to
+ * manipulate a byte array, and performs necessary boundary checks to prevent access violation. It
+ * does @em NOT manage memory, so the user is responsible for the validation of the underlying
+ * buffer.
+ * @tparam CharT A character type, must be `char`, `unsigned char` or `signed char`. Other wider
+ * sized types are @em NOT supported, e.g. `wchar_t`.
+ */
 template<typename CharT>
 class CCharBuffer
 {
@@ -39,32 +67,77 @@ public:
     typedef std::reverse_iterator<const_iterator>   const_reverse_iterator;
     static const size_type npos = static_cast<size_type>(-1);
     //functions
+    /**
+     * @brief Construct a @a null object with zero capacity.
+     */
     CCharBuffer()
         : buf_(NULL)
         , capa_(0)
         , sz_(0)
     {}
+    /**
+     * @brief Construct from a string.
+     * Both size and capacity are set to @c strlen(buf).
+     * @param buf Pointer to a string
+     */
     CCharBuffer(pointer buf)
         : buf_(buf)
         , capa_(traits_type::length(buf))
         , sz_(capa_)
     {}
+    /**
+     * @brief Construct from a byte buffer.
+     * @param buf Pointer to a byte buffer. Must @em NOT be NULL.
+     * @param capacity Size of bytes that this object can manipulate. It could be smaller than the
+     * allocated size of @c buf, but not greater.
+     * @param size Size of used bytes. It should be no more that @c capacity, or @c capacity will be
+     * used instead.
+     */
     CCharBuffer(pointer buf, size_type capacity, size_type size = 0)
         : buf_(buf)
         , capa_(capacity)
-        , sz_(size)
+        , sz_(std::min(size, capacity))
     {}
+    /**
+     * @brief Set this object to manage a byte buffer.
+     * @param buf Pointer to a byte buffer
+     * @param capacity Size of bytes that this object can manipulate. It could be different from the
+     * real allocated size of @c buf.
+     * @param size Size of used bytes. It should be no more that @c capacity, or @c capacity will be
+     * used instead.
+     * @return A reference to itself
+     */
     __Myt & assign(pointer buf, size_type capacity, size_type size = 0){
         buf_ = buf;
         capa_ = capacity;
-        sz_ = size;
+        sz_ = std::min(size, capacity);
         return *this;
     }
+    /**
+     * @brief Set this object to manage a buffer from another object.
+     * These two objects will manipulate the same byte buffer, so if one changes the content of
+     * the buffer, the other will reflect the change. But they can have different @c size, for
+     * example, one can @c resize to a new size, the other object's @c size won't get affected.
+     * @param other Reference to another CCharBuffer object.
+     * @return A reference to itself
+     */
     __Myt & assign(const __Myt & other){
         if(this != &other)
             assign(other.buf_, other.capa_, other.sz_);
         return *this;
     }
+    /**
+     * @brief Copy content of a buffer to self.
+     * This function tries to copy at most @c count bytes from @c buf, to the buffer managed by this
+     * object, starting from @c offset, which is similar to:
+     * @code std::copy(buf, buf + count, this->begin() + offset); @endcode
+     * except that if this object cannot hold as many as @c count bytes from @c offset, it will
+     * copy less bytes, which will be indicated in the return value.
+     * @param buf Pointer to a byte buffer.
+     * @param count Size of bytes to copy from @c buf.
+     * @param offset Offset of content in @c buf.
+     * @return Size of bytes actually copied.
+     */
     size_type copy(pointer buf, size_type count, size_type offset = 0) const{
         check_size_throw(offset);
         if(offset + count > sz_)
@@ -75,6 +148,10 @@ public:
         }
         return count;
     }
+    /**
+     * @brief Swap two object.
+     * @param other Reference to another object.
+     */
     void swap(__Myt & other) throw() {
         if(this != &other){
             std::swap(buf_, other.buf_);
@@ -82,23 +159,102 @@ public:
             std::swap(sz_, other.sz_);
         }
     }
+    /**
+     * @brief Get the beginning of the data.
+     * @return An mutable iterator pointing to the beginning of the data.
+     */
     iterator begin(){return iterator(&buf_[0]);}
+    /**
+     * @brief Get the ending of the data.
+     * @return An mutable iterator pointing to the ending of the data, which is one position after
+     * the last used byte.
+     */
     iterator end(){return iterator(&buf_[sz_]);}
+    /**
+     * @brief Get the beginning of the data.
+     * @return An constant iterator pointing to the beginning of the data.
+     */
     const_iterator begin() const{return const_iterator(&buf_[0]);}
+    /**
+     * @brief Get the ending of the data.
+     * @return An constant iterator pointing to the ending of the data, which is one position after the
+     * last used byte.
+     */
     const_iterator end() const{return const_iterator(&buf_[sz_]);}
+    /**
+     * @brief Get the ending of the data.
+     * @return An mutable reverse iterator pointing to the ending of the data.
+     */
     reverse_iterator rbegin(){return reverse_iterator(end());}
+    /**
+     * @brief Get the beginning of the data.
+     * @return An mutable reverse iterator pointing to the beginning of the data.
+     */
     reverse_iterator rend(){return reverse_iterator(begin());}
+    /**
+     * @brief Get the ending of the data.
+     * @return An constant reverse iterator pointing to the ending of the data.
+     */
     const_reverse_iterator rbegin() const{return const_reverse_iterator(end());}
+    /**
+     * @brief Get the beginning of the data.
+     * @return An constant reverse iterator pointing to the beginning of the data.
+     */
     const_reverse_iterator rend() const{return const_reverse_iterator(begin());}
+    /**
+     * @brief Test if the data is empty.
+     * @return @c true if @c size is 0; otherwise @c false.
+     */
     bool empty() const{return !sz_;}
+    /**
+     * @brief Get the size of the data, same as @c size().
+     * @return Size of used bytes.
+     * @sa size
+     */
     size_type length() const{return size();}
+    /**
+     * @brief Get the size of the data.
+     * @return Size of used bytes.
+     * @sa length
+     */
     size_type size() const{return sz_;}
+    /**
+     * @brief Get the capacity of the underlying byte buffer.
+     * @return Size of bytes that this object can hold at most.
+     */
     size_type capacity() const{return capa_;}
+    /**
+     * @brief Get the maximum number of bytes.
+     * @return Maximum number of bytes.
+     */
     size_type max_size() const{return size_type(-1);}
+    /**
+     * @brief Empty the data.
+     * This function will @em NOT change the content of the underlying byte buffer, only reset @c
+     * size of this object.
+     */
     void clear(){sz_ = 0;}
+    /**
+     * @brief Access a byte.
+     * @param i Index of the byte.
+     * @return Mutable reference to a byte.
+     */
     reference operator [](size_type i){return buf_[i];}
+    /**
+     * @brief Access a byte.
+     * @param i Index of the byte.
+     * @return Constant reference to a byte.
+     */
     const_reference operator [](size_type i) const{return buf_[i];}
+    /**
+     * @brief Access the first byte.
+     * @return Mutable reference to the first byte.
+     */
     reference front(){return operator [](0);}
+    /**
+     * @brief Access the first byte.
+     * @return Constant reference to the first byte.
+     */
     const_reference front() const{return operator [](0);}
     reference back(){return operator [](sz_ - 1);}
     const_reference back() const{return operator [](sz_ - 1);}
