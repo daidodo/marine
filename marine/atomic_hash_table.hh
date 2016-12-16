@@ -31,36 +31,37 @@
 
 NS_SERVER_BEGIN
 
-/// A lock-free hash table that can be used in multi-thread or multi-process programs.
-/// A common usage of CAtomicHashTable is for multiple threads or processes to operate on the same
-/// hash table efficiently.
-/// @n It must reside in continuous memory pre-allocated by the user.
-/// Hence, key and value types must be [trivially copyable]
-/// (http://en.cppreference.com/w/cpp/types/is_trivially_copyable), i.e. can be copied using @c
-/// std::memcpy.
-/// @par Multi-Thread/Process Access Safety Guide
-/// |           | Same Key | Different Keys |
-/// | ---       | ---      |---             |
-/// | **Read**  | Safe     | Safe           |
-/// | **Write** | Unsafe   | Safe           |
-/// @par Multiple Rows Hash Table
-/// CAtomicHashTable resolves key hash collisions by adding multiple rows. A row is a one-dimension
-/// hash table.
-/// @n If a key collides with another key in a row, CAtomicHashTable will search in the next row,
-/// and so on until it finds a room.
-/// @n The more number of rows, the less chance of failure when hash table capacity is about to
-/// reach. The less number of rows, the better performance it can get.
-/// @tparam Key Type of keys, must be POD or C struct compatible types
-/// @tparam HashKey Hash function of @a Key, should implement:
-///   @code size_t operator ()(const Key & key) const;  // compute hash value of key @endcode
-/// @tparam EqualKey Equal predictor of @a Key, should implement:
-///   @code
-///   bool operator ()(const Key & key1, const Key & key2) const;  // predict if key1 == key2
-///   @endcode
-/// @par Value
-/// Value type must be POD or C struct compatible types, or array of such types, with fixed or
-/// variant length.
-/// @note Size limitation of @a Key and @a Value is defined by @ref kValueLenMax.
+/**
+ * @brief A lock-free hash table that can be used in multi-thread or multi-process programs.
+ * A common usage of CAtomicHashTable is for multiple threads or processes to operate on the same
+ * hash table efficiently.
+ * @n It must reside in continuous memory pre-allocated by the user.
+ * Hence, key and value types must be [trivially copyable]
+ * (http://en.cppreference.com/w/cpp/types/is_trivially_copyable), i.e. can be copied using @c
+ * std::memcpy.
+ * @par Multi-Thread/Process Safety Guide
+ * |           | Same Key | Different Keys |
+ * | ---       | ---      |---             |
+ * | **Read**  | Safe     | Safe           |
+ * | **Write** | Unsafe   | Safe           |
+ * @par Multiple Rows Hash Table
+ * CAtomicHashTable resolves key hash collisions by adding multiple rows. A row is a one-dimension
+ * hash table.
+ * @n If a key collides with another key in a row, CAtomicHashTable will search in the next row,
+ * and so on until it finds a room.
+ * @n The more number of rows, the less chance of failure when hash table capacity is about to
+ * reach. The less number of rows, the better performance it can get.
+ * @tparam Key Type of keys, must be POD or C struct compatible types
+ * @tparam HashKey Hash function of @a Key, should implement:
+ *   @code size_t operator ()(const Key & key) const;  // compute hash value of key @endcode
+ * @tparam EqualKey Equal predictor of @a Key, should implement:
+ *   @code
+ *   bool operator ()(const Key & key1, const Key & key2) const;  // predict if key1 == key2
+ *   @endcode
+ * @par Value
+ * Value type is @c std::string or @c char array.
+ * @note Size limitation of @a Key and @a Value is defined by @ref kValueLenMax.
+ */
 template<
     typename Key,
     template<typename>class HashKey = CHashFn,
@@ -84,15 +85,21 @@ public:
     /// The maximum size of @a Key plus @a Value, i.e. 16MB
     static const size_t kValueLenMax = (1UL << 24);
     //functions:
-    /// Compute memory size needed for a hash table.
-    /// This function pre-computes the size of pre-allocated memory buffer needed for a hash table.
-    /// @param capacity The maximum number of key-value pairs the hash table wishes to hold
-    /// @param row Number of rows the hash table wants to have
-    /// @param valueLen Estimated byte size of key plus value, e.g. average size. This needs @em NOT
-    /// to be the maximum.
-    /// @return
-    ///   @li Number of bytes needed for a memory buffer to hold the hash table
-    ///   @li Or 0 if such requirement is unable to meet
+    /**
+     * @brief Compute memory size needed for a hash table.
+     * This function pre-computes the size of pre-allocated memory buffer needed for a hash table.
+     * @param capacity The maximum number of key-value pairs the hash table wishes to hold
+     * @param row Number of rows the hash table wants to have
+     * @param valueLen Estimated byte size of key plus value, e.g. average size. This needs @em NOT
+     * to be the maximum.
+     * @return
+     *   @li Number of bytes needed for a memory buffer to hold the hash table
+     *   @li Or 0 if such requirement is unable to meet
+     * @note CAtomicHashTable stores data (key and value) in @a blocks of size @c valueLen. If the
+     * block size is too large, there will be a lot of wasted spaces inside each block. Otherwise,
+     * if the block size is too small, a data may spread to many blocks, which will impact access
+     * performance.
+     */
     static size_t CalcBufSize(size_t capacity, int row, size_t valueLen){
         if(__Head::Check(capacity, row)){
             std::vector<uint32_t> cols;
@@ -102,122 +109,158 @@ public:
         }
         return 0;
     }
-    /// Prepare an uninitialized object.
-    /// You cannot use the object until it is initialized by @ref init.
+    /**
+     * @brief Prepare an uninitialized object.
+     * You cannot use the object until it is initialized by @ref init.
+     */
     CAtomicHashTable():head_(NULL){}
-    /// Attach an existing hash table hosted in a memory buffer.
-    /// @sa init(char * buf, size_t sz)
+    /**
+     * @brief Attach to an existing hash table hosted in a memory buffer.
+     * @sa init(char * buf, size_t sz)
+     */
     CAtomicHashTable(char * buf, size_t sz)
         : head_(NULL)
     {
         init(buf, sz);
     }
-    /// Attach or create a hash table in a memory buffer.
-    /// @sa init(char * buf, size_t sz, size_t capacity, int row, size_t valueLen, bool create)
+    /**
+     * @brief Attach to or create a hash table in a memory buffer.
+     * @sa init(char * buf, size_t sz, size_t capacity, int row, size_t valueLen, bool create)
+     */
     CAtomicHashTable(char * buf, size_t sz, size_t capacity, int row, size_t valueLen, bool create = false)
         : head_(NULL)
     {
         init(buf, sz, capacity, row, valueLen, create);
     }
-    /// Attach an existing hash table hosted in a memory buffer.
-    /// There must be an initialized hash table in the memory buffer.
-    /// This function tries to attach the existing hash table to a local object.
-    /// If failed, it won't modify the content of the memory buffer.
-    /// @param buf Pointer to the memory buffer
-    /// @param sz Byte size of the memory buffer
-    /// @return @c true if succeeded; otherwise @c false
+    /**
+     * @brief Attach to an existing hash table hosted in a memory buffer.
+     * There must be an initialized hash table in the memory buffer.
+     * This function tries to attach to the existing hash table to a local object.
+     * If failed, it won't modify the content of the memory buffer.
+     * @param buf Pointer to the memory buffer
+     * @param sz Byte size of the memory buffer
+     * @return @c true if succeeded; otherwise @c false
+     */
     bool init(char * buf, size_t sz){
         return initAux(buf, sz, false, 0, 0, 0);
     }
-    /// Attach or create a hash table in a memory buffer.
-    /// @li if `create = false`, this function tries to attach an existing hash table in the
-    /// memory buffer to a local object, just like init(char * buf, size_t sz), except that it will
-    /// also validate @c capacity, @c row and @c valueLen parameters if they are not 0;
-    /// @li if `create = true`, this function will create a new hash table in the memory buffer,
-    /// and erase any data existed. In this case, @c sz should be the return value of @ref
-    /// CalcBufSize, otherwise this function may fail.
-    ///
-    /// @param buf Pointer to the memory buffer
-    /// @param sz Byte size of the memory buffer
-    /// @param capacity The maximum number of key-value pairs the hash table wishes to hold
-    /// @param row Number of rows the hash table wants to have
-    /// @param valueLen Estimated byte size of key plus value, e.g. average size. This needs @em NOT
-    /// to be the maximum.
-    /// @param create @c false if attach an existing hash table; @c true if create a new one
-    /// @return @c true if succeeded; otherwise @c false
-    /// @sa CalcBufSize
+    /**
+     * @brief Attach to or create a hash table in a memory buffer.
+     * @li if `create = false`, this function tries to attach to an existing hash table in the
+     * memory buffer to a local object, just like init(char * buf, size_t sz), except that it will
+     * also validate @c capacity, @c row and @c valueLen parameters if they are not 0;
+     * @li if `create = true`, this function will create a new hash table in the memory buffer,
+     * and erase any data existing. In this case, @c sz should be the return value of @ref
+     * CalcBufSize, otherwise this function may fail.
+     *
+     * @param buf Pointer to the memory buffer
+     * @param sz Byte size of the memory buffer
+     * @param capacity The maximum number of key-value pairs the hash table wishes to hold
+     * @param row Number of rows the hash table wants to have
+     * @param valueLen Estimated byte size of key plus value, e.g. average size. This needs @em NOT
+     * to be the maximum.
+     * @param create @c false if attached to an existing hash table; @c true if create a new one
+     * @return @c true if succeeded; otherwise @c false
+     * @sa CalcBufSize
+     */
     bool init(char * buf, size_t sz, size_t capacity, int row, size_t valueLen, bool create = false){
         valueLen = alignLen(valueLen);
         if(create)
             return this->create(buf, sz, capacity, row, valueLen);
         return initAux(buf, sz, true, capacity, row, valueLen);
     }
-    /// Reset current object.
-    /// This function won't affect data in the real hash table memory buffer. After reset, the local
-    /// object could be reused by @ref init.
+    /**
+     * @brief Reset current object.
+     * This function won't affect data in the real hash table memory buffer. After reset, the local
+     * object could be reused by @ref init.
+     */
     void uninit(){
         head_ = NULL;
         rows_.clear();
     }
-    /// Test if current object is inilialized.
-    /// @return @c true if current object is inilialized; otherwise @c false
+    /**
+     * @brief Test if current object is initialized.
+     * @return @c true if current object is initialized; otherwise @c false
+     */
     bool valid() const{return (NULL != head_ && !rows_.empty());}
-    /// @name Capacity
-    //@{
-    /// Get number of rows in hash table.
-    /// @return
-    ///   @li Numer of rows
-    ///   @li Or 0 if current object is NOT inilialized
+    /**
+     * @name Capacity
+     * @{ */
+    /**
+     * @brief Get number of rows in hash table.
+     * @return
+     *   @li Number of rows
+     *   @li Or 0 if current object is NOT initialized
+     */
     int rowSize() const{return (head_ ? head_->row() : 0);}
-    /// Get capacity of a row in hash table.
-    /// @param row Index of row, ranging from 0 to rowSize() - 1
-    /// @return Number of key-value pairs that this row can hold at most
+    /**
+     * @brief Get capacity of a row in hash table.
+     * @param row Index of row, ranging from 0 to rowSize() - 1
+     * @return Number of key-value pairs that this row can hold at most
+     */
     size_t capacityOfRow(int row) const{return rows_[row].capacity();}
-    /// Get capacity of the hash table.
-    /// @return
-    ///   @li Number of key-value pairs that this hash table can hold at most
-    ///   @li Or 0 if current object is NOT inilialized
+    /**
+     * @brief Get capacity of the hash table.
+     * @return
+     *   @li Number of key-value pairs that this hash table can hold at most
+     *   @li Or 0 if current object is NOT initialized
+     */
     size_t capacity() const{return (head_ ? head_->realCapa() : 0);}
-    /// Get number of key-value pairs in a row.
-    /// @param row Index of row, ranging from 0 to rowSize() - 1
-    /// @return Number of key-value pairs hosted in this row
+    /**
+     * @brief Get number of key-value pairs in a row.
+     * @param row Index of row, ranging from 0 to rowSize() - 1
+     * @return Number of key-value pairs hosted in this row
+     */
     size_t sizeOfRow(int row) const{return rows_[row].used();}
-    /// Get number of key-value pair in the hash table
-    /// @return Number of key-value pairs in this hash table
+    /**
+     * @brief Get number of key-value pair in the hash table
+     * @return Number of key-value pairs in this hash table
+     */
     size_t size() const{
         size_t ret = 0;
         for(int i = 0;i < rowSize();++i)
             ret += sizeOfRow(i);
         return ret;
     }
-    /// Test if the hash table is empty
-    /// @return @c true if this hash table is empty; otherwise @c false
+    /**
+     * @brief Test if the hash table is empty
+     * @return @c true if this hash table is empty; otherwise @c false
+     */
     bool empty() const{
         for(int i = 0;i < rowSize();++i)
             if(0 != sizeOfRow(i))
                 return false;
         return true;
     }
-    //@}
-    /// @name Brief Info
-    //@{
-    /// Get creation time of the hash table.
-    /// @return
-    ///   @li Creation time of this hash table
-    ///   @li Or 0 if current object is NOT inilialized
+    /**  @} */
+    /**
+     * @name Brief Info
+     * @{ */
+    /**
+     * @brief Get creation time of the hash table.
+     * @return
+     *   @li Creation time of this hash table
+     *   @li Or 0 if current object is NOT initialized
+     */
     time_t createTime() const{return (head_ ? head_->createTime() : 0);}
-    /// Get latest updating time of the hash table.
-    /// @return
-    ///   @li Latest updating time of this hash table
-    ///   @li Or 0 if current object is NOT inilialized
+    /**
+     * @brief Get latest updating time of the hash table.
+     * @return
+     *   @li Latest updating time of this hash table
+     *   @li Or 0 if current object is NOT initialized
+     */
     time_t updateTime() const{return (head_ ? head_->modTime() : 0);}
-    /// Get latest upgrading time of the hash table.
-    /// @return
-    ///   @li Latest upgrading time of this hash table
-    ///   @li Or 0 if current object is NOT inilialized
+    /**
+     * @brief Get latest upgrading time of the hash table.
+     * @return
+     *   @li Latest upgrading time of this hash table
+     *   @li Or 0 if current object is NOT initialized
+     */
     time_t upgradeTime() const{return (head_ ? head_->upgradeTime() : 0);}
-    /// Get a description of the hash table.
-    /// @return A human readable description of this hash table
+    /**
+     * @brief Get a description of the hash table.
+     * @return A human readable description of this hash table
+     */
     std::string toString() const{
         CToString oss;
         oss<<"{\n"
@@ -227,16 +270,19 @@ public:
         oss<<"}";
         return oss.str();
     }
-    //@}
-    /// @name Data Access
-    //@{
-    /// Insert a key-value pair into the hash table.
-    /// If @c key already exists, this function may result in multiple instances of @c key in the
-    /// hash table.
-    /// @param key Key to insert into the hash table
-    /// @param value Pointer to bytes of value to insert into the hash table
-    /// @param len Byte size of value
-    /// @return @c true if succeeded; otherwise @c false
+    /**  @} */
+    /**
+     * @name Data Access
+     * @{ */
+    /**
+     * @brief Insert a key-value pair into the hash table.
+     * If @c key already exists, this function may result in multiple instances of @c key in the
+     * hash table.
+     * @param key Key to insert into the hash table
+     * @param value Pointer to bytes of value to insert into the hash table
+     * @param len Byte size of value
+     * @return @c true if succeeded; otherwise @c false
+     */
     bool insert(const key_type & key, const char * value, size_t len){
         //check
         if(!valid())
@@ -252,23 +298,27 @@ public:
         head_->update();
         return true;
     }
-    /// Insert a key-value pair into the hash table.
-    /// If @c key already exists, this function may result in multiple instances of @c key in the
-    /// hash table.
-    /// @param key Key to insert into the hash table
-    /// @param value Bytes of value to insert into the hash table
-    /// @return @c true if succeeded; otherwise @c false
+    /**
+     * @brief Insert a key-value pair into the hash table.
+     * If @c key already exists, this function may result in multiple instances of @c key in the
+     * hash table.
+     * @param key Key to insert into the hash table
+     * @param value Bytes of value to insert into the hash table
+     * @return @c true if succeeded; otherwise @c false
+     */
     bool insert(const key_type & key, const std::string & value){
         return this->insert(key, value.c_str(), value.length());
     }
-    /// Obtain value of a key
-    /// @param[in] key Key to search for
-    /// @param[in] value Pointer to memory buffer that receives the value data
-    /// @param[inout] len Passed in as bytes size of @c value buffer; and passed out as actual bytes
-    ///   size of the data copied
-    /// @return
-    ///   @li @c true, if succeeded
-    ///   @li @c false, otherwise, e.g. @c key doesn't exists, @c value buffer is insufficient
+    /**
+     * @brief Obtain value of a key
+     * @param[in] key Key to search for
+     * @param[in] value Pointer to memory buffer that receives the value data
+     * @param[inout] len Passed in as bytes size of @c value buffer; and passed out as actual bytes
+     *   size of the data copied
+     * @return
+     *   @li @c true, if succeeded
+     *   @li @c false, otherwise, e.g. @c key doesn't exists, @c value buffer is insufficient
+     */
     bool get(const key_type & key, char * value, size_t & len) const{
         //check
         if(!valid())
@@ -291,10 +341,12 @@ public:
         len = cur;
         return true;
     }
-    /// Obtain value of a key.
-    /// @param[in] key Key to search for
-    /// @param[out] value String bytes to receive the value data
-    /// @return @c true if succeeded; otherwise @c false
+    /**
+     * @brief Obtain value of a key.
+     * @param[in] key Key to search for
+     * @param[out] value String bytes to receive the value data
+     * @return @c true if succeeded; otherwise @c false
+     */
     bool get(const key_type & key, std::string & value) const{
         //check
         if(!valid())
@@ -313,21 +365,25 @@ public:
         size_t cur = readNodes(p, &value[0], value.size(), hash);
         return (cur == value.size());
     }
-    /// Test if a key exists in the hash table
-    /// @param key Key to search for
-    /// @return @c true if @c key exists in this hash table; otherwise @c false
+    /**
+     * @brief Test if a key exists in the hash table
+     * @param key Key to search for
+     * @return @c true if @c key exists in this hash table; otherwise @c false
+     */
     bool has(const key_type & key) const{
         if(!valid())
             return false;
         return (NULL != searchNode(hasher()(key), key));
     }
-    /// Update value of a key.
-    /// If @c key doesn't exist, then insert a new key-value pair.
-    /// @param key Key to search for
-    /// @param value Pointer to bytes of value to update for
-    /// @param len Byte size of value
-    /// @return @c true if succeeded; otherwise @c false
-    /// @sa insert
+    /**
+     * @brief Update value of a key.
+     * If @c key doesn't exist, then insert a new key-value pair.
+     * @param key Key to search for
+     * @param value Pointer to bytes of value to update for
+     * @param len Byte size of value
+     * @return @c true if succeeded; otherwise @c false
+     * @sa insert
+     */
     bool update(const key_type & key, const char * value, size_t len){
         //check
         if(!valid())
@@ -348,19 +404,23 @@ public:
         head_->update();
         return true;
     }
-    /// Update value of a key.
-    /// If @c key doesn't exist, then insert a new key-value pair.
-    /// @param key Key to search for
-    /// @param value Bytes of value to update for
-    /// @return @c true if succeeded; otherwise @c false
-    /// @sa insert
+    /**
+     * @brief Update value of a key.
+     * If @c key doesn't exist, then insert a new key-value pair.
+     * @param key Key to search for
+     * @param value Bytes of value to update for
+     * @return @c true if succeeded; otherwise @c false
+     * @sa insert
+     */
     bool update(const key_type & key, const std::string & value){
         return this->update(key, value.c_str(), value.length());
     }
-    /// Remove a key and its value.
-    /// If there are multiple instances of @c key, only one will be removed.
-    /// @param key Key to remove from this hash table
-    /// @return Number of data blocks released; Or 0 if @c key doesn't exist
+    /**
+     * @brief Remove a key and its value.
+     * If there are multiple instances of @c key, only one will be removed.
+     * @param key Key to remove from this hash table
+     * @return Number of data blocks released; Or 0 if @c key doesn't exist
+     */
     size_t remove(const key_type & key){
         //check
         if(!valid())
@@ -372,15 +432,17 @@ public:
             head_->update();
         return ret;
     }
-    /// Clear all data in the hash table.
-    /// @warning This function is @em NOT thread-safe. Do @em NOT call it while other threads or
-    ///   processes are accessing the hash table.
+    /**
+     * @brief Clear all data in the hash table.
+     * @warning This function is @em NOT thread-safe. Do @em NOT call it while other threads or
+     *   processes are accessing the hash table.
+     */
     void clear(){
         if(valid())
             for(__Iter it = rows_.begin();it != rows_.end();++it)
                 it->clear();
     }
-    //@}
+    /**  @} */
 private:
     static size_t alignLen(size_t len){return (len + 7) / 8 * 8;}
     static size_t bufSize(int row, size_t realCapa, size_t valueSz){
