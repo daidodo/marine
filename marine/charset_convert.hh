@@ -42,18 +42,24 @@ class CCharsetConvert
 public:
     /**
      * @brief Conversion mode
-     * @li @c kNormal: Default mode;
-     * @li @c kTranslit: Characters that cannot be converted are discarded and an error is printed
-     * after conversion.
-     * @li @c kIgnore: Characters being converted are transliterated when needed and possible.  This
-     * means that when a character cannot be represented in the target character set, it can be
-     * approximated through one or several similar looking characters.  Characters that are outside
-     * of the target character set and cannot be transliterated are replaced with a question mark
-     * (?) in the output.
      */
     enum EMode{
+        /**
+         * @details Default mode.
+         */
         kNormal = 0,
+        /**
+         * @details Characters being converted are transliterated when needed and possible. This
+         * means that when a character cannot be represented in the target character set, it can be
+         * approximated through one or several similar looking characters. Characters that are
+         * outside of the target character set and cannot be transliterated are replaced with a
+         * question mark (?) in the output.
+         */
         kTranslit,
+        /**
+         * @details Characters that cannot be converted are discarded and an error is printed after
+         * conversion.
+         */
         kIgnore
     };
     /**
