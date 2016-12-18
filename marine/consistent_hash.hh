@@ -1,3 +1,28 @@
+/*
+ * Copyright (c) 2016 Zhao DAI <daidodo@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or any
+ * later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see accompanying file LICENSE.txt
+ * or <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * @file
+ * @brief [Consistent Hashng](https://en.wikipedia.org/wiki/Consistent_hashing) algorithm
+ * implementation.
+ * @author Zhao DAI
+ */
+
 #ifndef DOZERG_CONSISTENT_HASH_H_20131127
 #define DOZERG_CONSISTENT_HASH_H_20131127
 
@@ -9,6 +34,37 @@
 
 NS_SERVER_BEGIN
 
+/**
+ * @brief A lightweight implementation of [Consistent Hashng]
+ * (https://en.wikipedia.org/wiki/Consistent_hashing) algorithm.
+ * Consistent Hashing is a technique to map a large number of keys to limited amount of values.
+ * @n Consider a common use case below:
+ * @n You have 10 servers to serve for 1 million users, you need to decide which user is served by
+ * which server. CConsistentHash can do the mapping easily:
+ *   @li Each user's ID is a key for CConsistentHash;
+ *   @li Integer 1 to 10 are values denoting each server;
+ *   @li Firstly you set weight for every value, which could mean the capability of each server, for
+ *   example, like this:
+ *   @code{.cpp}
+ *   CConsistentHash<UserId> mapping;
+ *   mapping.setValue(1, 1000);
+ *   mapping.setValue(2, 1500);
+ *   mapping.setValue(3, 500);
+ *   // ...
+ *   @endcode
+ *   @li Then for every user request, get which server it should go to, like this:
+ *   @code{.cpp} uint32_t serverId = mapping.hash(userId); @endcode
+ *
+ * The real power of consistent hashing algorithm is that, when you want to add or remove a server
+ * from your servers pool, only a fraction of your users will be redirected to a different server,
+ * which could make the impact as small as possible. CConsistentHash makes this operation even
+ * easier by using one API @ref setValue only:
+ *   @li Set a positive weight for a new value to add a new server;
+ *   @li Change the weight of an existing value to adjust the capability of the server;
+ *   @li Set weight to 0 for an existing value to remove the server;
+ * @tparam Key Type of keys
+ * @tparam HashKey Hash function for @c Key
+ */
 template<
     class Key,
     template<typename>class HashKey = CHashFn
@@ -30,7 +86,11 @@ private:
     typedef std::map<value_type, __Node>     __Values;   //value -> node
 public:
     //functions
-    //计算key的一致性hash结果
+    /**
+     * @brief Get consistent hash result of a key.
+     * @param key A key
+     * @return An integer denoting the hash result of @c key
+     */
     value_type hash(const key_type & key) const{
         assert(!ring_.empty());
         const value_type h = hasher()(key);
@@ -39,10 +99,11 @@ public:
             wh = ring_.begin();
         return wh->second;
     }
-    //修改hash结果集
-    //value: hash结果值
-    //weight: 权重，即value被hash到的概率
-    //  0   相当于移除value
+    /**
+     * @brief Add, remove or modify weight of a value.
+     * @param value An integer denoting a value
+     * @param weight New weight of @c value. If it's @c 0, @c value will be removed
+     */
     void setValue(value_type value, size_t weight = 1000){
         if(weight){
             __Node & n = values_[value];
@@ -58,8 +119,9 @@ public:
             }
         }
     }
+#ifdef UNIT_TEST
+    // These are test APIs.
 public:
-    //以下是测试用接口
     void actualWeight(std::vector<std::pair<value_type, value_type> > & results) const{
         assert(!ring_.empty());
         value_type last = 0;
@@ -69,6 +131,7 @@ public:
         }
         addWeight(ring_.begin()->second, value_type(-1) - last, results);
     }
+private:
     void vnodes(std::vector<std::pair<value_type, value_type> > & results) const{
         results.resize(ring_.size());
         std::copy(ring_.begin(), ring_.end(), results.begin());
@@ -82,6 +145,7 @@ public:
             }
         results.push_back(std::make_pair(value, weight));
     }
+#endif
 private:
     void insertNode(value_type value, size_t weight, __Node & n){
         while(n.weight() < weight){

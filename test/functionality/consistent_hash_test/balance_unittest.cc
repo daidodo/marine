@@ -1,3 +1,4 @@
+#define UNIT_TEST
 #include <marine/consistent_hash.hh>
 
 #include <cmath>
