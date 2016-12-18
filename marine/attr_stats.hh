@@ -35,7 +35,7 @@ NS_SERVER_BEGIN
 /**
  * @brief Increase an attribute atomically.
  * An example usage shows below:
- * @code
+ * @code{.cpp}
  * // init statistics APIs before use
  * ATTR_INIT();
  * ...
@@ -96,7 +96,7 @@ inline bool ATTR_ADD_SLOW(int attr, uint64_t val)
 /**
  * @brief Modify an attribute atomically.
  * An example usage shows below:
- * @code
+ * @code{.cpp}
  * // init statistics APIs before use
  * ATTR_INIT();
  * ...
@@ -168,7 +168,7 @@ inline bool ATTR_SET_SLOW(int attr, uint64_t val, uint64_t * old = NULL)
 /**
  * @brief Iterate and apply an operation to all attributes.
  * @param op Operation to apply to all attributes, should implement:
- *   @code void operator ()(int attr, uint64_t value) const; @endcode
+ *   @code{.cpp} void operator ()(int attr, uint64_t value) const; @endcode
  *   In which:
  *     @li @c attr is a positive number identifying the attribute
  *     @li @c value is the current value of the attribute

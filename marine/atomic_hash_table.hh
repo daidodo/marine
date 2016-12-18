@@ -53,9 +53,9 @@ NS_SERVER_BEGIN
  * reach. The less number of rows, the better performance it can get.
  * @tparam Key Type of keys, must be POD or C struct compatible types
  * @tparam HashKey Hash function of @a Key, should implement:
- *   @code size_t operator ()(const Key & key) const;  // compute hash value of key @endcode
+ *   @code{.cpp} size_t operator ()(const Key & key) const;  // compute hash value of key @endcode
  * @tparam EqualKey Equal predictor of @a Key, should implement:
- *   @code
+ *   @code{.cpp}
  *   bool operator ()(const Key & key1, const Key & key2) const;  // predict if key1 == key2
  *   @endcode
  * @par Value

@@ -287,7 +287,7 @@ public:
     /**
      * @brief Compare and set atomically.
      * This function performs:
-     * @code
+     * @code{.cpp}
      * if(*this == expval){
      *     *oldval = *this; *this = newval; return true;
      * }else{
@@ -310,7 +310,7 @@ public:
     /**
      * @brief Compare and set atomically.
      * This function performs:
-     * @code
+     * @code{.cpp}
      * if(*val == expval){
      *     *oldval = *val; *val = newval; return true;
      * }else{

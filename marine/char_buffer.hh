@@ -314,7 +314,7 @@ public:
      * @brief Copy content of a buffer to self.
      * This function tries to copy at most @c count bytes from @c buf, to the buffer managed by this
      * object, starting from @c offset, which is similar to:
-     * @code std::copy(buf, buf + count, this->begin() + offset); @endcode
+     * @code{.cpp} std::copy(buf, buf + count, this->begin() + offset); @endcode
      * except that if self cannot hold as many as @c count bytes from @c offset, it will
      * copy less bytes, which will be indicated in the return value.
      * @param buf Pointer to a byte buffer.
