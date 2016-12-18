@@ -148,14 +148,14 @@ public:
      * @{
      * @details These functions try to translate the value to an integer of return type.
      * @n A number of suffixes (case insensitive) could appear at the end of the value:
-     * | Suffix | Meaning |
+     * | Suffix | Explanation |
      * | --- | --- |
-     * | @c k or @c kb | @f$N*1024@f$ |
-     * | @c m or @c mb | @f$N*1024^2(=1,048,576)@f$ |
-     * | @c g or @c gb | @f$N*1024^3(=1,073,741,824)@f$ |
-     * | @c t or @c tb | @f$N*1024^4(=1,099,511,627,776)@f$ |
-     * | @c p or @c pb | @f$N*1024^5(=1,125,899,906,842,624)@f$ |
-     * | @c e or @c eb | @f$N*1024^6(=1,152,921,504,606,846,976)@f$ |
+     * | @c k or @c kb | @f$N\times1024@f$ |
+     * | @c m or @c mb | @f$N\times1024^2(=1,048,576)@f$ |
+     * | @c g or @c gb | @f$N\times1024^3(=1,073,741,824)@f$ |
+     * | @c t or @c tb | @f$N\times1024^4(=1,099,511,627,776)@f$ |
+     * | @c p or @c pb | @f$N\times1024^5(=1,125,899,906,842,624)@f$ |
+     * | @c e or @c eb | @f$N\times1024^6(=1,152,921,504,606,846,976)@f$ |
      * For example, @c 2KB is equal to @c 2048.
      * @n If @c key is not found, @c ndefault will be used as an candidate;
      * @n If the returned integer would be smaller than @c min, @c min will be returned;
