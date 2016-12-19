@@ -1,3 +1,4 @@
+#define UNIT_TEST
 #include <marine/coroutine.hh>
 #include <deque>
 #include "../inc.h"

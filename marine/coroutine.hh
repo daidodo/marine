@@ -1,5 +1,34 @@
+/*
+ * Copyright (c) 2016 Zhao DAI <daidodo@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or any
+ * later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see accompanying file LICENSE.txt
+ * or <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * @file
+ * @brief A lightweight implementation of [coroutine](https://en.wikipedia.org/wiki/Coroutine).
+ * @warning This file is still under development.
+ * @author Zhao DAI
+ */
+
 #ifndef DOZERG_COROUTINE_H_20150420
 #define DOZERG_COROUTINE_H_20150420
+
+#ifndef UNIT_TEST
+#   warning "This file is still under development."
+#endif
 
 #include <signal.h>     // MINSIGSTKSZ
 #include "impl/coroutine_impl.hh"
