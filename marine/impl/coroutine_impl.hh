@@ -67,8 +67,8 @@ private:
     }
     bool running() const{return (0 != (flags_ & kFlagsRunning));}
     void unwind(){
-        if(0 != (flags_ & kFlagsUnwindStack))
-            throw CUnwindStack();
+        //if(0 != (flags_ & kFlagsUnwindStack))
+        //    throw CUnwindStack();
     }
     CCoroutineBase(const CCoroutineBase &);  //disable copy and assignment
     CCoroutineBase & operator =(const CCoroutineBase &);
