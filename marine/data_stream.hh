@@ -1,3 +1,27 @@
+/*
+ * Copyright (c) 2016 Zhao DAI <daidodo@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or any
+ * later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see accompanying file LICENSE.txt
+ * or <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * @file
+ * @brief Data packing library using stream style interfaces.
+ * @author Zhao DAI
+ */
+
 #ifndef DOZERG_DATA_STREAM_H_20070905
 #define DOZERG_DATA_STREAM_H_20070905
 
@@ -46,20 +70,96 @@ NS_SERVER_BEGIN
 //TODO:
 //ds<<x<<y<<Manip::offset_value(off, in.size())
 
+/**
+ * @brief Manipulators for stream interface APIs.
+ */
 namespace Manip{
 
-    //读/写数组（无长度字段）
+    /**
+     * @name Pack/unpack a range of elements, without leading length field.
+     * @{ */
+
+    /**
+     * @brief Pack/unpack an array with fixed size.
+     * Sample code for CInByteStream:
+     * @code{.cpp}
+     * CInByteStream in(buf, sz);
+     *
+     * int c[5];    // an array to receive unpacked results
+     *
+     * in >> Mapip::raw(c);  // unpack 5 integers
+     * // This is equivalent to:
+     * // for(int i = 0;i < 5;++i)
+     * //     in >> c[i];
+     * @endcode
+     * Sample code for COutByteStreamBasic:
+     * @code{.cpp}
+     * COutByteStream out;
+     *
+     * int c[5];    // an array to pack
+     *
+     * out << Mapip::raw(c);    // pack 5 integers
+     * // This is equivalent to:
+     * // for(int i = 0;i < 5;++i)
+     * //     out << c[i];
+     * @endcode
+     * @param[inout] c An array
+     */
     template<class T, size_t N>
     inline NS_IMPL::CManipulatorRawPtr<T> raw(T (&c)[N]){
         return NS_IMPL::CManipulatorRawPtr<T>(c, N);
     }
 
+    /**
+     * @brief Pack/unpack an array with variable size.
+     * Sample code for CInByteStream:
+     * @code{.cpp}
+     * CInByteStream in(buf, sz);
+     *
+     * int * c = new int[sz];    // an array to receive unpacked results
+     *
+     * in >> Mapip::raw(c, sz);  // unpack 'sz' integers
+     * // This is equivalent to:
+     * // for(int i = 0;i < sz;++i)
+     * //     in >> c[i];
+     * @endcode
+     * Sample code for COutByteStreamBasic:
+     * @code{.cpp}
+     * COutByteStream out;
+     *
+     * int * c = new int[sz];    // an array to pack
+     *
+     * out << Mapip::raw(c, sz);    // pack 'sz' integers
+     * // This is equivalent to:
+     * // for(int i = 0;i < sz;++i)
+     * //     out << c[i];
+     * @endcode
+     * @param[inout] c Pointer to an array of elements
+     * @param[in] sz Number of elements in @c c
+     */
     template<class T>
     inline NS_IMPL::CManipulatorRawPtr<T> raw(T * c, size_t sz){
         return NS_IMPL::CManipulatorRawPtr<T>(c, sz);
     }
 
-    //读取/写入vector（无长度字段）
+    /**
+     * @brief Unpack elements and append to an @c std::vector.
+     * Sample code for CInByteStream:
+     * @code{.cpp}
+     * CInByteStream in(buf, sz);
+     *
+     * vector<int> c;    // an object to receive unpacked results
+     *
+     * in >> Mapip::raw(c, sz);  // unpack 'sz' integers, and append them to 'c'
+     * // This is equivalent to:
+     * // for(int i = 0, v;i < sz;++i){
+     * //     in >> v;
+     * //     c.push_back(v);
+     * // }
+     * @endcode
+     * @param[out] c Object to receive unpacked elements
+     * @param[in] sz Number of elements to be unpacked
+     */
     template<class T>
     inline NS_IMPL::CManipulatorRawPtr<T> raw(std::vector<T> & c, size_t sz){
         const size_t old = c.size();
@@ -67,6 +167,22 @@ namespace Manip{
         return NS_IMPL::CManipulatorRawPtr<T>(&c[old], sz);
     }
 
+    /**
+     * @brief Pack elements in an @c std::vector.
+     * Sample code for COutByteStreamBasic:
+     * @code{.cpp}
+     * COutByteStream out;
+     *
+     * vector<int> c;    // an vector to pack
+     *
+     * out << Mapip::raw(c);    // pack elements in 'c'
+     * // This is equivalent to:
+     * // for(int i = 0;i < c.size();++i)
+     * //     out << c[i];
+     * @endcode
+     * @param[in] c Object to pack
+     * @param[out] sz If not @c NULL, receive the number of elements packed.
+     */
     template<class T>
     inline NS_IMPL::CManipulatorRawPtr<const T> raw(const std::vector<T> & c, size_t * sz = NULL){
         if(sz)
@@ -74,7 +190,26 @@ namespace Manip{
         return NS_IMPL::CManipulatorRawPtr<const T>(&c[0], c.size());
     }
 
-    //读取/写入basic_string（无长度字段）
+    /**
+     * @brief Unpack a string.
+     * The unpacked data will append to @c c.
+     * Sample code for CInByteStream:
+     * @code{.cpp}
+     * CInByteStream in(buf, sz);
+     *
+     * string c;    // an object to receive unpacked data
+     *
+     * in >> Mapip::raw(c, len);  // unpack 'len' bytes of data, and append them to 'c'
+     * // This is equivalent to:
+     * // for(int i = 0;i < len;++i){
+     * //     char v;
+     * //     in >> v;
+     * //     c.push_back(v);
+     * // }
+     * @endcode
+     * @param c An object to receive unpacked data
+     * @param len Size of bytes to unpack
+     */
     template<typename Char>
     inline NS_IMPL::CManipulatorRawPtr<Char> raw(std::basic_string<Char> & c, size_t len){
         const size_t old = c.size();
@@ -82,6 +217,22 @@ namespace Manip{
         return NS_IMPL::CManipulatorRawPtr<Char>(&c[old], len);
     }
 
+    /**
+     * @brief Pack a string.
+     * Sample code for COutByteStreamBasic:
+     * @code{.cpp}
+     * COutByteStream out;
+     *
+     * string c;    // a string to pack
+     *
+     * out << Mapip::raw(c);    // pack the string
+     * // This is equivalent to:
+     * // for(int i = 0;i < c.size();++i)
+     * //     out << c[i];
+     * @endcode
+     * @param[in] c Object to pack
+     * @param[out] sz If not @c NULL, receive size of bytes packed.
+     */
     template<typename Char>
     inline NS_IMPL::CManipulatorRawPtr<const Char> raw(const std::basic_string<Char> & c, size_t * sz = NULL){
         if(sz)
@@ -90,12 +241,61 @@ namespace Manip{
     }
 
     //读取/写入迭代器范围[first, last)（无长度字段）
+    /**
+     * @brief Pack/unpack elements in a range of iterators.
+     * Sample code for CInByteStream:
+     * @code{.cpp}
+     * CInByteStream in(buf, sz);
+     *
+     * list<int> c;
+     * auto first = c.begin();  // start iterator
+     * auto last = c.end();     // end iterator
+     *
+     * in >> Mapip::raw(first, last);  // unpack certain integers to range [first, last)
+     * // This is equivalent to:
+     * // for(auto it = first;it != last;++it)
+     * //     in >> *it;
+     * @endcode
+     * Sample code for COutByteStreamBasic:
+     * @code{.cpp}
+     * COutByteStream out;
+     *
+     * list<int> c;
+     * auto first = c.begin();  // start iterator
+     * auto last = c.end();     // end iterator
+     *
+     * out << Mapip::raw(first, last);    // pack certain integers from range [first, last)
+     * // This is equivalent to:
+     * // for(auto it = first;it != last;++it)
+     * //     out << *it;
+     * @endcode
+     * @param[inout] first Start iterator
+     * @param[inout] last End iterator
+     * @param[out] sz If not @c NULL, receive the number of elements packed/unpacked
+     */
     template<class ForwardIter>
     inline NS_IMPL::CManipulatorRawRange<ForwardIter> raw(ForwardIter first, ForwardIter last, size_t * sz = NULL){
         return NS_IMPL::CManipulatorRawRange<ForwardIter>(first, last, sz);
     }
 
-    //读取/写入容器（无长度字段）
+    /**
+     * @brief Unpack elements and append to a container.
+     * Sample code for CInByteStream:
+     * @code{.cpp}
+     * CInByteStream in(buf, sz);
+     *
+     * deque<int> c;    // a container to receive unpacked elements
+     *
+     * in >> Mapip::raw(c, sz);  // unpack 'sz' integers, and append them to 'c'
+     * // This is equivalent to:
+     * // for(int i = 0, v;i < sz;++i){
+     * //     in >> v;
+     * //     c.push_back(v);
+     * // }
+     * @endcode
+     * @param c A container to receive unpacked elements
+     * @param sz Number of elements to unpack
+     */
     template<class T>
     inline NS_IMPL::CManipulatorRawCont<T> raw(T & c, size_t sz){
         return NS_IMPL::CManipulatorRawCont<T>(c, sz, NULL);
@@ -105,6 +305,7 @@ namespace Manip{
     inline NS_IMPL::CManipulatorRawCont<const T> raw(const T & c, size_t * sz = NULL){
         return NS_IMPL::CManipulatorRawCont<const T>(c, 0, sz);
     }
+    /**  @} */
 
     //读取/写入数组（有长度字段）
     template<typename LenT, class T, size_t N>
@@ -296,6 +497,28 @@ namespace Manip{
 
 }//namespace Manip
 
+/**
+ * @brief Data unpacking interfaces.
+ * CInByteStream is super convenient for unpacking data. It receives a byte buffer containing
+ * serialized data, and tries to decode whatever you want from it.
+ * @n CInByteStream manages data [endianness](https://en.wikipedia.org/wiki/Endianness)
+ * automatically, so you don't need to call @c hton/ntoh family APIs manually.It also performs
+ * sufficient boundary checks so you won't end up with memory access violations.
+ * @n What makes CInByteStream really powerful is that it integrates a number of manipulators,
+ * which makes unpacking complex structures a joy of life.
+ * @n Sample code:
+ * @code{.cpp}
+ * CInByteStream in(buf, sz);   // initialize from a byte buffer
+ *
+ * // Following are the data we want to unpack
+ * uint32_t version;        // a 32-bit integer
+ * string name;             // a string
+ * vector<uint64_t> orders; // an array of 64-bit integers
+ *
+ * // Then we extract all data in ONE line!
+ * in >> version >> name >> Manip::array(orders);
+ * @endcode
+ */
 class CInByteStream : public NS_IMPL::CDataStreamBase
 {
     typedef NS_IMPL::CDataStreamBase __MyBase;
@@ -304,30 +527,69 @@ class CInByteStream : public NS_IMPL::CDataStreamBase
     size_t          len_;
     size_t          cur_;
 public:
-    //初始化
-    //buf: 源数据
-    //sz: buf字节长度
-    //net:
-    //  true    源数据为网络字节序
-    //  false   源数据为本地字节序
+    /**
+     * @brief Construct an empty object.
+     * You need to call @ref setSource before you can use this object to unpack data.
+     * @sa setSource
+     */
     CInByteStream()
         : __MyBase(kByteOrderDefault, 1)
         , data_(NULL)
         , len_(0)
         , cur_(0)
     {}
+    /**
+     * @brief Construct from a byte buffer.
+     * @param buf Pointer to a byte buffer containing data to be unpacked
+     * @param sz Byte size of @c buf, if present
+     * @param net Byte order of the data in @c buf:
+     *   @li @c true: Net byte order, this is the default;
+     *   @li @c false: Host byte order;
+     */
     CInByteStream(const char * buf, size_t sz, bool net = kByteOrderDefault){
         setSource(buf, sz, net);
     }
+    /**
+     * @brief Construct from a byte buffer.
+     * @param buf Pointer to a byte buffer containing data to be unpacked
+     * @param sz Byte size of @c buf, if present
+     * @param net Byte order of the data in @c buf:
+     *   @li @c true: Net byte order, this is the default;
+     *   @li @c false: Host byte order;
+     */
     CInByteStream(const unsigned char * buf, size_t sz, bool net = kByteOrderDefault){
         setSource(buf, sz, net);
     }
+    /**
+     * @brief Construct from a byte buffer.
+     * @param buf Pointer to a byte buffer containing data to be unpacked
+     * @param sz Byte size of @c buf
+     * @param net Byte order of the data in @c buf:
+     *   @li @c true: Net byte order, this is the default;
+     *   @li @c false: Host byte order;
+     */
     CInByteStream(const signed char * buf, size_t sz, bool net = kByteOrderDefault){
         setSource(buf, sz, net);
     }
+    /**
+     * @brief Construct from a byte buffer.
+     * @param buf A byte buffer containing data to be unpacked
+     * @param net Byte order of the data in @c buf:
+     *   @li @c true: Net byte order, this is the default;
+     *   @li @c false: Host byte order;
+     */
     CInByteStream(const std::string & buf, bool net = kByteOrderDefault){
         setSource(buf, net);
     }
+    /**
+     * @brief Initialize with a byte buffer.
+     * This function will also reset current pointer and status.
+     * @param buf Pointer to a byte buffer containing data to be unpacked
+     * @param sz Byte size of @c buf, if present
+     * @param net Byte order of the data in @c buf:
+     *   @li @c true: Net byte order, this is the default;
+     *   @li @c false: Host byte order;
+     */
     void setSource(const char * buf, size_t sz, bool net = kByteOrderDefault){
         data_ = buf;
         len_ = sz;
@@ -335,25 +597,61 @@ public:
         netByteOrder(net);
         status(0);
     }
+    /**
+     * @brief Initialize with a byte buffer.
+     * This function will also reset current pointer and status.
+     * @param buf Pointer to a byte buffer containing data to be unpacked
+     * @param sz Byte size of @c buf, if present
+     * @param net Byte order of the data in @c buf:
+     *   @li @c true: Net byte order, this is the default;
+     *   @li @c false: Host byte order;
+     */
     void setSource(const unsigned char * buf, size_t sz, bool net = kByteOrderDefault){
         setSource(reinterpret_cast<const char *>(buf), sz, net);
     }
+    /**
+     * @brief Initialize with a byte buffer.
+     * This function will also reset *current pointer* (current reading position) and @a status.
+     * @param buf Pointer to a byte buffer containing data to be unpacked
+     * @param sz Byte size of @c buf, if present
+     * @param net Byte order of the data in @c buf:
+     *   @li @c true: Net byte order, this is the default;
+     *   @li @c false: Host byte order;
+     */
     void setSource(const signed char * buf, size_t sz, bool net = kByteOrderDefault){
         setSource(reinterpret_cast<const char *>(buf), sz, net);
     }
+    /**
+     * @brief Initialize with a byte buffer.
+     * @param buf A byte buffer containing data to be unpacked
+     * @param net Byte order of the data in @c buf:
+     *   @li @c true: Net byte order, this is the default;
+     *   @li @c false: Host byte order;
+     */
     void setSource(const std::string & buf, bool net = kByteOrderDefault){
         setSource(buf.c_str(), buf.size(), net);
     }
-    //设置错误码
+    /**
+     * @brief Set @a status.
+     * If @a status is not @c 0, all unpacking operations will fail.
+     * @param code
+     *   @li @c 0: Reset status.
+     *   @li Otherwise: A number indicating error status.
+     * @return Reference of self
+     */
     __Myt & bad(int code){
         status(code);
         return *this;
     }
-    //设置cur指针的值
-    //注意：如果cur变小，相当于重新使用前面的数据；如果cur变大了，相当于跳过指定的数据
-    //return:
-    //  <0      设置失败，并设置status为非0
-    //  其他    设置后的cur()
+    /**
+     * @brief Set *current pointer*.
+     * If this function makes *current pointer* smaller, old data will be read again; And if
+     * *current pointer* becomes larger, some data will be skipped.
+     * @param pos New current pointer
+     * @return
+     *   @li Negative: Operation failed, *status* will be set to a nonzero value;
+     *   @li Otherwise: New *current pointer*;
+     */
     ssize_t seek(size_t pos){
         if(!checkStub(pos))
             return -1;
@@ -363,20 +661,56 @@ public:
         }
         return (cur_ = pos);
     }
-    //修改cur指针的值为(cur + off)
-    //注意：如果cur变小，相当于重新使用之前的数据；如果cur变大了，相当于跳过指定的数据
-    //off: cur指针要加上的偏移
-    //return:
-    //  <0      修改失败，并设置status为非0
-    //  其他    修改后的cur()
+    /**
+     * @brief Skip some data.
+     * This function is equivalent to `seek(cur() + off)`.
+     * @param off Bytes size of data to skip.
+     * @return
+     *   @li Negative: Operation failed, *status* will be set to a nonzero value;
+     *   @li Otherwise: New *current pointer*;
+     * @note You can also give a negative @c off to jump back to old data.
+     */
     ssize_t skip(ssize_t off){return seek(cur() + off);}
-    //获取cur指针的值
+    /**
+     * @brief Get *current pointer*.
+     * *Current pointer* is the index of underlying data where next unpacking operation will take
+     * place. Every unpacking operation increases *current pointer* by the amount of data it reads.
+     * @return Current pointer
+     */
     size_t cur() const{return cur_;}
-    //获取剩余数据
+    /**
+     * @brief Get a pointer to @em left data.
+     * This function returns a pointer to the first unread byte, which is also indicated by
+     * *current pointer*.
+     * @return A pointer to the unread data
+     * @sa cur
+     */
     const char * data() const{return (data_ + cur());}
-    //获取剩余的字节数
+    /**
+     * @brief Get byte size of left data.
+     * @return Bytes size of left data
+     */
     size_t left() const{return (getStub(len_) - cur());}
-    //读取基本类型
+    /**
+     * @brief Get a readable description of this object.
+     * @return A readable description of this object
+     */
+    std::string toString() const{
+        CToString oss;
+        oss<<"{CDataStreamBase="<<__MyBase::toString()
+            <<", cur_="<<cur_
+            <<", data_="<<NS_IMPL::dumpBufPart(data_, len_, cur_)
+            <<"}";
+        return oss.str();
+    }
+    /**
+     * @name Unpack primitive types
+     * @{
+     * These functions read `sizeof c` bytes from underlying data, and store result in @c c, with
+     * appropriate byte order transformation.
+     * @param[out] c An integer to receive the result
+     * @return Reference to self
+     */
     __Myt & operator >>(char & c)               {return readPod(c);}
     __Myt & operator >>(signed char & c)        {return readPod(c);}
     __Myt & operator >>(unsigned char & c)      {return readPod(c);}
@@ -389,9 +723,52 @@ public:
     __Myt & operator >>(long long & c)          {return readPod(c);}
     __Myt & operator >>(unsigned long long & c) {return readPod(c);}
     __Myt & operator >>(wchar_t & c)            {return readPod(c);}
-    //读取定长数组(无长度字段)
+    /**  @} */
+    /**
+     * @name Unpack compound types
+     * @{ */
+    /**
+     * @brief Unpack a string.
+     * This function first reads a @c uint16_t as the length of the result string, then reads the
+     * whole string.
+     * @param[out] c A string to receive the result
+     * @return Reference to self
+     */
+    __Myt & operator >>(std::string & c){return (*this>>Manip::array(c));}
+    /**
+     * @brief Unpack a wide string.
+     * This function first reads a @c uint16_t as the length of the result wide string, then reads
+     * the whole wide string.
+     * @param[out] c A wide string to receive the result
+     * @return Reference to self
+     */
+    __Myt & operator >>(std::wstring & c){return (*this>>Manip::array(c));}
+    /**
+     * @brief Unpack an array.
+     * This function reads @c N elements directly (without leading length field), and stores them
+     * in @c c.
+     * @n @c T must be a type supported by `operator >>` of CInByteStream.
+     * @tparam T Type of element in array
+     * @tparam N Number of elements in array
+     * @param[out] c An array to receive the result
+     * @return Reference to self
+     */
     template<class T, size_t N>
     __Myt & operator >>(T (&c)[N]){return readRaw(c, N);}
+    /**  @} */
+    /**
+     * @name Manipulators
+     * @{
+     * These functions operates on different manipulators to achieve special purpose.
+     * Please see the corresponding manipulator generators in @ref Manip for more information.
+     * @param m Manipulator object
+     * @return Reference of self
+     */
+    __Myt & operator >>(void (*m)(__MyBase &)){
+        if(m)
+            m(*this);
+        return *this;
+    }
     template<class T>
     __Myt & operator >>(const NS_IMPL::CManipulatorRawPtr<T> & m){
         return readRaw(m.c_, m.sz_);
@@ -415,7 +792,6 @@ public:
             *m.sz_ = sz;
         return *this;
     }
-    //读取变长数组(有长度字段)
     template<typename LenT, class T>
     __Myt & operator >>(const NS_IMPL::CManipulatorArrayPtr<LenT, T> & m){
         LenT sz;
@@ -438,15 +814,6 @@ public:
         }
         return *this;
     }
-    __Myt & operator >>(std::string & c){return (*this>>Manip::array(c));}
-    __Myt & operator >>(std::wstring & c){return (*this>>Manip::array(c));}
-    //函数指针型操作符
-    __Myt & operator >>(void (*m)(__MyBase &)){
-        if(m)
-            m(*this);
-        return *this;
-    }
-    //指定字节序读取字段
     template<class T>
     __Myt & operator >>(const NS_IMPL::CManipulatorValueByteOrder<T> & m){
         const bool old = littleEndian();
@@ -454,12 +821,10 @@ public:
         littleEndian(old);
         return *this;
     }
-    //设置cur指针的值
     __Myt & operator >>(const NS_IMPL::CManipulatorSeek & m){
         seek(m.pos_);
         return *this;
     }
-    //修改cur指针的值
     __Myt & operator >>(const NS_IMPL::CManipulatorSkip & m){
         skip(m.off_);
         return *this;
@@ -470,7 +835,6 @@ public:
             skip(*m.off_);
         return *this;
     }
-    //在指定位置读取字段，不改变cur指针的值
     template<class T>
     __Myt & operator >>(const NS_IMPL::CManipulatorOffsetValue<T> & m){
         const size_t old = cur();
@@ -478,7 +842,6 @@ public:
             seek(old);
         return *this;
     }
-    //读取protobuf消息
     template<class T>
     __Myt & operator >>(const NS_IMPL::CManipulatorProtobuf<T> & m){
         size_t sz = left();
@@ -489,7 +852,6 @@ public:
         skip(sz);
         return *this;
     }
-    //使用Base 128 Varints解码整数
     template<typename T>
     __Myt & operator >>(const NS_IMPL::CManipulatorVarint<T> & m){
         typename NS_IMPL::CManipulatorVarint<T>::__Unsigned v = 0;
@@ -497,12 +859,10 @@ public:
             m.fromUnsigned(v);
         return *this;
     }
-    //设置临时边界
     __Myt & operator >>(const NS_IMPL::CManipulatorStubPush & m){
         pushStub(m.sz_ + cur());
         return *this;
     }
-    //撤除临时边界
     __Myt & operator >>(const NS_IMPL::CManipulatorStubPop & m){
         size_t pos;
         if(popStub(&pos)){
@@ -512,7 +872,6 @@ public:
         }
         return *this;
     }
-    //如果有剩余数据，则设置错误码；否则忽略
     template<class T, class S>
     __Myt & operator >>(const NS_IMPL::CManipulatorEnd<T, S> & m){
         if(good() && left())
@@ -525,15 +884,7 @@ public:
             return bad(1);
         return (*this>>m());
     }
-    //输出可读字符串
-    std::string toString() const{
-        CToString oss;
-        oss<<"{CDataStreamBase="<<__MyBase::toString()
-            <<", cur_="<<cur_
-            <<", data_="<<NS_IMPL::dumpBufPart(data_, len_, cur_)
-            <<"}";
-        return oss.str();
-    }
+    /**  @} */
 private:
     CInByteStream(const char * buf);    //maybe you miss 'sz'. Disable implicit cast to std::string
     template<typename T>
@@ -602,6 +953,64 @@ private:
     }
 };
 
+/**
+ * @brief Data packing interfaces.
+ * COutByteStreamBasic is for easy data packing/encoding/serialization. It manages data [endianness]
+ * (https://en.wikipedia.org/wiki/Endianness) automatically, so you don't need to call @c hton/ntoh
+ * family APIs manually. It also performs sufficient boundary checks so you won't end up with memory
+ * access violations.
+ * @n COutByteStream supports a number of manipulators to operate on compound types and complex
+ * structures, which will make your code really concise and efficient.
+ * @n The type of underlying byte buffer determines which variant of COutByteStreamBasic you may
+ * choose:
+ * @li Internal @c std::string
+ *
+ * @c COutByteStream (or @c COutByteStreamStr) uses internal @c std::string as the underlying byte
+ * buffer, which means you don't need to provide a byte buffer when constructing a @c COutByteStream
+ * object, instead you could indicate a byte size to the internal @c std::string object to reserve,
+ * so it might not need to expand (and copy data) later on.
+ * @li External @c std::string
+ *
+ * In the contrary, @c COutByteStreamStrRef needs an external @c std::string object to store data,
+ * provided in the constructor. @c COutByteStreamStrRef will hold a reference to the @c std::string
+ * object and manipulate it during the process of serialization/encoding. New data will append to
+ * the @c std::string object, so it's possible to deal with some legacy code and avoid performance
+ * loss.
+ * @li Internal @c std::vector<char>
+ *
+ * Similar to @c COutByteStream, @c COutByteStreamVec uses internal @c std::vector<char> as the
+ * underlying buffer. You can treat them quite the same, and the purpose of @c COutByteStreamVec is
+ * only for completion: some people prefer using @c std::vector<char> as a buffer.
+ * @li External @c std::vector<char>
+ *
+ * @c COutByteStreamVecRef needs an external @c std::vector<char> object to construct, just like @c
+ * COutByteStreamStrRef does. And every aspect is just the same for both of them, as described
+ * before.
+ * @li External @c char array
+ *
+ * @c COutByteStreamBuf is different from all above. It receives a @c char array as the underlying
+ * buffer, with fixed size, wrapped by CCharBuffer. It's impossible to @a expand the underlying
+ * buffer, and when it's full, all serialization operations will fail and status is set.
+ * @n Here is an example use of @c COutByteStream:
+ * @code{.cpp}
+ * COutByteStream out;   // using internal std::string as data buffer
+ *
+ * // Following are the data we want to pack
+ * uint32_t version;        // a 32-bit integer
+ * string name;             // a string
+ * vector<uint64_t> orders; // an array of 64-bit integers
+ *
+ * // This is to receive the final data buffer.
+ * std::string buf;
+ *
+ * // Then we serialize all data in ONE line!
+ * out << version << name << Manip::array(orders)
+ *     << Manip::end(buf);  // And export the data to 'buf'
+ * @endcode
+ * Other variants are similar, except for the constructor and @ref Manip:end part.
+ * @tparam Data Type of underlying byte buffer
+ * @note COutByteStreamBasic is not intended for direct use, try variants introduced above.
+ */
 template<class Data>
 class COutByteStreamBasic : public NS_IMPL::CDataStreamBase
 {
@@ -611,36 +1020,61 @@ class COutByteStreamBasic : public NS_IMPL::CDataStreamBase
 public:
     typedef typename Data::__Buf        buffer_type;
     typedef typename Data::__Char       char_type;
-    //初始化
-    //net:
-    //  true    目标数据为网络字节序
-    //  false   目标数据为本地字节序
-    //reserve: 如果底层是容器，表示预留的缓冲区大小，可避免频繁分配内存
+    /**
+     * @brief Constructor for COutByteStream/COutByteStreamStr, COutByteStreamVec.
+     * @param reserve Byte size for the underlying buffer to reserve.
+     * @param net Byte order of the data in the underlying buffer:
+     *   @li @c true: Net byte order, this is the default;
+     *   @li @c false: Host byte order;
+     */
     explicit COutByteStreamBasic(size_t reserve = 1024, bool net = kByteOrderDefault)
         : __MyBase(net)
         , data_(reserve)
     {}
-    //buf: 如果底层是指定的容器对象，表示该对象
+    /**
+     * @brief Constructor for COutByteStreamStrRef, COutByteStreamVecRef.
+     * @param buf Reference to external byte buffer
+     * @param net Byte order of the data in the underlying buffer:
+     *   @li @c true: Net byte order, this is the default;
+     *   @li @c false: Host byte order;
+     */
     explicit COutByteStreamBasic(buffer_type & buf, bool net = kByteOrderDefault)
         : __MyBase(net)
         , data_(buf)
     {}
-    //buf: 如果底层是定长缓冲区，表示缓冲区地址
-    //sz: 如果底层是定长缓冲区，表示缓冲区大小
+    /**
+     * @brief Constructor for COutByteStreamBuf.
+     * @param buf Pointer to external byte buffer
+     * @param sz Length of @c buf
+     * @param net Byte order of the data in the underlying buffer:
+     *   @li @c true: Net byte order, this is the default;
+     *   @li @c false: Host byte order;
+     */
     COutByteStreamBasic(char_type * buf, size_t sz, bool net = kByteOrderDefault)
         : __MyBase(net)
         , data_(buf, sz)
     {}
-    //设置错误码
+    /**
+     * @brief Set @a status.
+     * If @a status is not @c 0, all packing operations will fail.
+     * @param code
+     *   @li @c 0: Reset status.
+     *   @li Otherwise: A number indicating error status.
+     * @return Reference of self
+     */
     __Myt & bad(int code){
         status(code);
         return *this;
     }
-    //设置cur指针的值
-    //注意：如果cur变小，相当于抹掉了后面的数据；如果cur变大了，相当于留出指定的空间
-    //return:
-    //  <0      设置失败，并设置status为非0
-    //  其他    设置后的cur()
+    /**
+     * @brief Set *current pointer*.
+     * If this function makes *current pointer* smaller, some data are erased; And if
+     * *current pointer* becomes larger, some room are reserved.
+     * @param pos New current pointer
+     * @return
+     *   @li Negative: Operation failed, *status* will be set to a nonzero value;
+     *   @li Otherwise: New *current pointer*;
+     */
     ssize_t seek(size_t pos){
         if(!checkStub(pos))
             return -1;
@@ -649,15 +1083,30 @@ public:
         status(1);
         return -1;
     }
-    //获取cur指针的值，即当前已写入的数据大小
+    /**
+     * @brief Get *current pointer*.
+     * *Current pointer* is the size of data that have been written to the underlying byte buffer.
+     * Every packing operation increases *current pointer* by the amount of data it writes.
+     * @return Current pointer
+     * @sa size
+     */
     size_t cur() const{return data_.cur();}
+    /**
+     * @brief Get byte size of data have been written, same as @ref cur.
+     * @return Byte size written data
+     * @sa cur
+     */
     size_t size() const{return cur();}
-    //修改cur指针的值为(cur + off)
-    //fill: 填充字符
-    //注意：如果cur变小，相当于抹掉了后面的数据；如果cur变大了，相当于留出指定的空间
-    //return:
-    //  <0      设置失败，并设置status为非0
-    //  其他    设置后的cur()
+    /**
+     * @brief Skip some bytes.
+     * This function is equivalent to `seek(cur() + off)`. If `off > 0`, some room are reserved; if
+     * `off < 0`, some data are erased.
+     * @n The content of the underlying buffer will @em NOT be modified by this function.
+     * @param off Size of bytes to skip.
+     * @return
+     *   @li Negative: Operation failed, *status* will be set to a nonzero value;
+     *   @li Otherwise: New *current pointer*;
+     */
     ssize_t skip(ssize_t off){
         if(!checkStub(cur() + off))
             return -1;
@@ -667,6 +1116,16 @@ public:
         }
         return seek(cur() + off);
     }
+    /**
+     * @brief Skip some bytes.
+     * This function is similar to `seek(cur() + off)`. If `off > 0`, some room are reserved, and
+     * @c fill are used to fill in the room; if `off < 0`, some data are erased.
+     * @param off Size of bytes to skip.
+     * @param fill Character to fill in the reserved room, if any
+     * @return
+     *   @li Negative: Operation failed, *status* will be set to a nonzero value;
+     *   @li Otherwise: New *current pointer*;
+     */
     ssize_t skip(ssize_t off, int fill){
         const size_t old = cur();
         const ssize_t ret = skip(off);
@@ -676,7 +1135,25 @@ public:
             std::fill(data_.data(old), data_.data(ret), fill);
         return ret;
     }
-    //写入基本类型
+    /**
+     * @brief Get a readable description of this object.
+     * @return A readable description of this object
+     */
+    std::string toString() const{
+        CToString oss;
+        oss<<"{CDataStreamBase="<<__MyBase::toString()
+            <<", data_="<<data_.toString()
+            <<"}";
+        return oss.str();
+    }
+    /**
+     * @name Pack primitive types
+     * @{
+     * These functions write @c c to the underlying buffer, and extend it by `sizeof c` bytes, with
+     * appropriate byte order transformation.
+     * @param c An integer to be packed
+     * @return Reference to self
+     */
     __Myt & operator <<(char c)                 {return writePod(c);}
     __Myt & operator <<(signed char c)          {return writePod(c);}
     __Myt & operator <<(unsigned char c)        {return writePod(c);}
@@ -689,9 +1166,47 @@ public:
     __Myt & operator <<(long long c)            {return writePod(c);}
     __Myt & operator <<(unsigned long long c)   {return writePod(c);}
     __Myt & operator <<(wchar_t c)              {return writePod(c);}
-    //写入定长数组(无长度字段)
+    /**  @} */
+    /**
+     * @name Pack compound types
+     * @{ */
+    /**
+     * @brief Pack a string.
+     * This function first writes a @c uint16_t equal to the length of @c c, then copy the
+     * whole string to the underlying buffer.
+     * @param c A string to be packed
+     * @return Reference to self
+     */
+    __Myt & operator <<(const std::string & c){return (*this<<Manip::array(c));}
+    /**
+     * @brief Pack a wide string.
+     * This function first writes a @c uint16_t equal to the length of @c c, then copy the
+     * whole string to the underlying buffer.
+     * @param c A wide string to be packed
+     * @return Reference to self
+     */
+    __Myt & operator <<(const std::wstring & c){return (*this<<Manip::array(c));}
+    /**
+     * @brief Pack an array.
+     * This function writes @c N elements directly (without leading length field) to the underlying
+     * buffer.
+     * @n @c T must be a type supported by `operator <<` of COutByteStreamBasic.
+     * @tparam T Type of element in array
+     * @tparam N Number of elements in array
+     * @param c An array to be packed
+     * @return Reference to self
+     */
     template<class T, size_t N>
     __Myt & operator <<(const T (&c)[N]){return writeRaw(c, N);}
+    /**  @} */
+    /**
+     * @name Manipulators
+     * @{
+     * These functions operates on different manipulators to achieve special purpose.
+     * Please see the corresponding manipulator generators in @ref Manip for more information.
+     * @param m Manipulator object
+     * @return Reference of self
+     */
     template<class T>
     __Myt & operator <<(const NS_IMPL::CManipulatorRawPtr<T> & m){
         return writeRaw(m.c_, m.sz_);
@@ -710,7 +1225,6 @@ public:
             *m.sz_ = sz;
         return *this;
     }
-    //写入变长数组(有长度字段)
     template<typename LenT, class T>
     __Myt & operator <<(const NS_IMPL::CManipulatorArrayPtr<LenT, T> & m){
         if(*this<<LenT(m.sz1_))
@@ -739,15 +1253,11 @@ public:
         }
         return *this;
     }
-    __Myt & operator <<(const std::string & c){return (*this<<Manip::array(c));}
-    __Myt & operator <<(const std::wstring & c){return (*this<<Manip::array(c));}
-    //函数指针型操作符
     __Myt & operator <<(void (*m)(__MyBase &)){
         if(m)
             m(*this);
         return *this;
     }
-    //指定字节序写入数据
     template<class T>
     __Myt & operator <<(const NS_IMPL::CManipulatorValueByteOrder<T> & m){
         const bool old = littleEndian();
@@ -755,12 +1265,10 @@ public:
         littleEndian(old);
         return *this;
     }
-    //设置cur指针的值
     __Myt & operator <<(const NS_IMPL::CManipulatorSeek & m){
         seek(m.pos_);
         return *this;
     }
-    //修改cur指针的值
     __Myt & operator <<(const NS_IMPL::CManipulatorSkip & m){
         skip(m.off_);
         return *this;
@@ -781,7 +1289,6 @@ public:
             skip(*m.off_, m.fill_);
         return *this;
     }
-    //在指定位置写入字段，不改变cur指针的值
     template<class T>
     __Myt & operator <<(const NS_IMPL::CManipulatorOffsetValue<T> & m){
         const size_t old = cur();
@@ -789,7 +1296,6 @@ public:
             seek(old);
         return *this;
     }
-    //在指定位置插入字段，后面数据相应后移
     template<class T>
     __Myt & operator <<(const NS_IMPL::CManipulatorInsert<T> & m){
         typedef COutByteStreamBasic<NS_IMPL::__buf_ref_data<std::string> > __OutStream;
@@ -807,7 +1313,6 @@ public:
         }
         return *this;
     }
-    //写入protobuf消息
     template<class T>
     __Myt & operator <<(const NS_IMPL::CManipulatorProtobuf<T> & m){
         const size_t old = size();
@@ -818,17 +1323,14 @@ public:
         }
         return *this;
     }
-    //使用Base 128 Varints遍码整数
     template<typename T>
     __Myt & operator <<(const NS_IMPL::CManipulatorVarint<T> & m){
         return writeVarint(m.toUnsigned());
     }
-    //设置临时边界
     __Myt & operator <<(const NS_IMPL::CManipulatorStubPush & m){
         pushStub(m.sz_ + cur());
         return *this;
     }
-    //撤除临时边界
     __Myt & operator <<(const NS_IMPL::CManipulatorStubPop & m){
         size_t pos;
         if(popStub(&pos)){
@@ -838,7 +1340,6 @@ public:
         }
         return *this;
     }
-    //调用对应的finish()
     __Myt & operator <<(const NS_IMPL::CManipulatorEnd<void, void> & m){
         finish();
         return *this;
@@ -862,40 +1363,64 @@ public:
         finish(m.buf_, m.sz_);
         return *this;
     }
-    //导出所有写入的数据，并清空自己
+    /**  @} */
+    /**
+     * @brief Export data for COutByteStreamStrRef, COutByteStreamVecRef.
+     * Although COutByteStreamStrRef and COutByteStreamVecRef use external byte buffer, it's still
+     * necessary to call this function or use @ref Manip::end() explicitly, to do some finishing
+     * work, e.g. correcting the size of the byte buffer object.
+     * @return @c true if succeeded; otherwise @c false
+     */
     bool finish(){
         if(good() && !data_.exportData())
             status(1);
         return clearStub();
     }
-    //sz: 返回导出数据的字节长度
+    /**
+     * @brief Export data for COutByteStreamBuf, COutByteStreamStrRef, COutByteStreamVecRef.
+     * This function does some finishing work, e.g. correcting the size of the underlying buffer,
+     * and return its real size to @c sz.
+     * @n The returned size may be different to @c size(), in case that there were data already in
+     * the external buffer before serialization.
+     * @tparam SizeT An integer type
+     * @param[out] sz Pointer to an integer to receive the size of the data
+     * @return @c true if succeeded; otherwise @c false
+     */
     template<typename SizeT>
     bool finish(SizeT * sz){
         if(good() && !data_.exportData(sz))
             status(1);
         return clearStub();
     }
-    //dst: 将导出数据追加到dst已有数据后面
+    /**
+     * @brief Export data for COutByteStream/COutByteStreamStr, COutByteStreamStrRef,
+     * COutByteStreamVec, COutByteStreamVecRef.
+     * This function appends the underlying data to @c dst.
+     * @n For COutByteStream and COutByteStreamVec, if @c dst is empty before exporting, @c swap
+     * will be used to avoid data copy.
+     * @param[out] dst A buffer to receive data
+     * @return @c true if succeeded; otherwise @c false
+     */
     bool finish(buffer_type & dst){
         if(good() && !data_.exportData(dst))
             status(1);
         return clearStub();
     }
-    //dst: 使用导出数据覆盖dst已有的数据
-    //sz: 输入表示dst的字节长度，返回表示导出数据的字节长度
+    /**
+     * @brief Export data for COutByteStream/COutByteStreamStr, COutByteStreamStrRef,
+     * COutByteStreamVec, COutByteStreamVecRef, COutByteStreamBuf.
+     * This function copies the underlying data to a byte buffer pointed by @c dst, and returns the
+     * real size of data to @c sz.
+     * @tparam CharT Must be the same as the underlying character type, e.g. @c char
+     * @param[out] dst Pointer to a byte array to receive the data
+     * @param[inout] sz Pass in as the length of @c dst; pass out as the real size of exported data
+     * @return @c true if succeeded; otherwise @c false
+     */
     template<typename CharT>
     bool finish(CharT * dst, size_t * sz){
         if(good() && !data_.exportData(dst, sz))
             status(1);
         return clearStub();
-    }
-    //输出可读字符串
-    std::string toString() const{
-        CToString oss;
-        oss<<"{CDataStreamBase="<<__MyBase::toString()
-            <<", data_="<<data_.toString()
-            <<"}";
-        return oss.str();
     }
 private:
     __Myt & operator <<(bool);  //prevent from abusing
@@ -1014,21 +1539,22 @@ private:
     __Data data_;
 };
 
-//COutByteStream, COutByteStreamStr
+/** @brief Use internal @c std::string as the underlying data buffer. */
 typedef COutByteStreamBasic<NS_IMPL::__buf_data<std::string> > COutByteStreamStr;
 
+/** @brief Same as COutByteStreamStr */
 typedef COutByteStreamStr COutByteStream;
 
-//COutByteStreamStr
+/** @brief Use external @c std::string as the underlying data buffer. */
 typedef COutByteStreamBasic<NS_IMPL::__buf_ref_data<std::string> > COutByteStreamStrRef;
 
-//COutByteStreamVec
+/** @brief Use internal @c std::vector<char> as the underlying data buffer. */
 typedef COutByteStreamBasic<NS_IMPL::__buf_data<std::vector<char> > > COutByteStreamVec;
 
-//COutByteStreamVecRef
+/** @brief Use external @c std::vector<char> as the underlying data buffer. */
 typedef COutByteStreamBasic<NS_IMPL::__buf_ref_data<std::vector<char> > > COutByteStreamVecRef;
 
-//COutByteStreamBuf
+/** @brief Use external @c char array as the underlying data buffer. */
 typedef COutByteStreamBasic<NS_IMPL::__buf_data<CCharBuffer<char> > > COutByteStreamBuf;
 
 NS_SERVER_END
