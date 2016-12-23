@@ -73,8 +73,7 @@ __INTEGER_TRAITS_FOR_POD(unsigned long, false, long, unsigned long);
 __INTEGER_TRAITS_FOR_POD(long long, false, long long, unsigned long long);
 __INTEGER_TRAITS_FOR_POD(unsigned long long, false, long long, unsigned long long);
 
-#undef __INTEGER_TRAITS_FOR_CHAR
-#undef __INTEGER_TRAITS_FOR_INT
+#undef __INTEGER_TRAITS_FOR_POD
 
 //转字节序函数选择器
 template<typename T, size_t N>
