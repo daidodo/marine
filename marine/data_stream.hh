@@ -25,41 +25,6 @@
 #ifndef DOZERG_DATA_STREAM_H_20070905
 #define DOZERG_DATA_STREAM_H_20070905
 
-/*
-    封装数据流的读取和写入
-    注意测试operator !(), 在错误状态下, 所有读写数据操作都会无效
-    类型:
-        CInByteStream           以字节为单位的输入流
-        COutByteStream          以std::string为底层buf的字节输出流
-        COutByteStreamStr       同COutByteStream
-        COutByteStreamStrRef    以外部std::string对象为底层buf的字节输出流
-        COutByteStreamVec       以std::vector<char>为底层buf的字节输出流
-        COutByteStreamVecRef    以外部std::vector<char>对象为底层buf的字节输出流
-        COutByteStreamBuf       以(char *, size_t)为底层buf的字节输出流
-    操作符:
-        raw                     输入/输出数组数据，无长度字段
-        array                   输入/输出数组数据，有长度字段
-        net_order               设置输入/输出流为网络字节序
-        host_order              设置输入/输出流为本地字节序
-        little_endian           设置输入/输出流为小端字节序(little endian)
-        big_endian              设置输入/输出流为大端字节序(big endian，网络序)
-        net_order_value         以网络字节序读写字段，不改变输入/输出流的字节序
-        host_order_value        以本地字节序读写字段，不改变输入/输出流的字节序
-        little_endian_value     以小端字节序(little endian)读写字段，不改变输入/输出流的字节序
-        big_endian_value        以大端字节序(big endian，网络序)读写字段，不改变输入/输出流的字节序
-        seek                    设置输入/输出流的cur指针
-        skip                    修改输入/输出流的cur指针
-        offset_value            在指定位置输入/输出数据，不改变cur指针
-        insert                  在指定位置插入数据
-        protobuf                封装protobuf类的输入输出
-        varint                  使用Base 128 Varints编解码整数
-        end                     对于输入流: 如果有剩余数据，则设置错误状态；否则忽略
-                                对于输出流: 调用对应的finish()
-    Manual:
-        请参考"document/data_stream-manual.txt"
-
-//*/
-
 #include <cassert>
 #include <cstring>  //memcpy
 #include <vector>
@@ -76,11 +41,11 @@ NS_SERVER_BEGIN
 namespace Manip{
 
     /**
-     * @name Pack/unpack a range of elements, without leading length field.
-     * @{ */
-
-    /**
-     * @brief Pack/unpack an array with fixed size.
+     * @name Mapip::raw
+     * @brief Pack/unpack a range of elements, @em without leading size field.
+     * @c Mapip::raw is convenient for pack/unpack fixed number of elements, like an array, a
+     * string of characters, or a container.
+     * @par Array
      * Sample code for CInByteStream:
      * @code{.cpp}
      * CInByteStream in(buf, sz);
@@ -103,16 +68,8 @@ namespace Manip{
      * // for(int i = 0;i < 5;++i)
      * //     out << c[i];
      * @endcode
-     * @param[inout] c An array
-     */
-    template<class T, size_t N>
-    inline NS_IMPL::CManipulatorRawPtr<T> raw(T (&c)[N]){
-        return NS_IMPL::CManipulatorRawPtr<T>(c, N);
-    }
-
-    /**
-     * @brief Pack/unpack an array with variable size.
-     * Sample code for CInByteStream:
+     * If size of array cannot be deduced automatically, a parameter must be provided.
+     * @n Sample code for CInByteStream:
      * @code{.cpp}
      * CInByteStream in(buf, sz);
      *
@@ -134,66 +91,59 @@ namespace Manip{
      * // for(int i = 0;i < sz;++i)
      * //     out << c[i];
      * @endcode
-     * @param[inout] c Pointer to an array of elements
-     * @param[in] sz Number of elements in @c c
-     */
-    template<class T>
-    inline NS_IMPL::CManipulatorRawPtr<T> raw(T * c, size_t sz){
-        return NS_IMPL::CManipulatorRawPtr<T>(c, sz);
-    }
-
-    /**
-     * @brief Unpack elements and append to an @c std::vector.
-     * Sample code for CInByteStream:
+     * @par Containers
+     * Most STL containers are well supported, e.g. @c vector, @c list, @c deque, @c set/multiset,
+     * @c map/multimap, etc.
+     * @n Sample code for CInByteStream:
      * @code{.cpp}
      * CInByteStream in(buf, sz);
      *
-     * vector<int> c;    // an object to receive unpacked results
+     * vector<int> c;    // a container to receive unpacked results
      *
      * in >> Mapip::raw(c, sz);  // unpack 'sz' integers, and append them to 'c'
      * // This is equivalent to:
      * // for(int i = 0, v;i < sz;++i){
      * //     in >> v;
-     * //     c.push_back(v);
+     * //     c.insert(c.end(), v);
      * // }
      * @endcode
-     * @param[out] c Object to receive unpacked elements
-     * @param[in] sz Number of elements to be unpacked
-     */
-    template<class T>
-    inline NS_IMPL::CManipulatorRawPtr<T> raw(std::vector<T> & c, size_t sz){
-        const size_t old = c.size();
-        c.resize(old + sz);
-        return NS_IMPL::CManipulatorRawPtr<T>(&c[old], sz);
-    }
-
-    /**
-     * @brief Pack elements in an @c std::vector.
      * Sample code for COutByteStreamBasic:
      * @code{.cpp}
      * COutByteStream out;
      *
      * vector<int> c;    // an vector to pack
      *
-     * out << Mapip::raw(c);    // pack elements in 'c'
+     * out << Mapip::raw(c);    // pack all elements in 'c'
      * // This is equivalent to:
      * // for(int i = 0;i < c.size();++i)
      * //     out << c[i];
      * @endcode
-     * @param[in] c Object to pack
-     * @param[out] sz If not @c NULL, receive the number of elements packed.
-     */
-    template<class T>
-    inline NS_IMPL::CManipulatorRawPtr<const T> raw(const std::vector<T> & c, size_t * sz = NULL){
-        if(sz)
-            *sz = c.size();
-        return NS_IMPL::CManipulatorRawPtr<const T>(&c[0], c.size());
-    }
-
-    /**
-     * @brief Unpack a string.
-     * The unpacked data will append to @c c.
-     * Sample code for CInByteStream:
+     * @par String
+     * A C-style string is essentially an array of characters.
+     * @n Sample code for CInByteStream:
+     * @code{.cpp}
+     * CInByteStream in(buf, sz);
+     *
+     * char * c = new char[sz];    // an array of chars to receive unpacked results
+     *
+     * in >> Mapip::raw(c, sz);  // unpack 'sz' chars
+     * // This is equivalent to:
+     * // for(int i = 0;i < sz;++i)
+     * //     in >> c[i];
+     * @endcode
+     * Sample code for COutByteStreamBasic:
+     * @code{.cpp}
+     * COutByteStream out;
+     *
+     * const char * c = "abcde";    // a C-style string to pack
+     *
+     * out << Mapip::raw(c, strlen(c));    // pack a C-style string
+     * // This is equivalent to:
+     * // for(int i = 0;i < strlen(c);++i)
+     * //     out << c[i];
+     * @endcode
+     * @n An @c std::string is a container of characters.
+     * @n Sample code for CInByteStream:
      * @code{.cpp}
      * CInByteStream in(buf, sz);
      *
@@ -207,53 +157,34 @@ namespace Manip{
      * //     c.push_back(v);
      * // }
      * @endcode
-     * @param c An object to receive unpacked data
-     * @param len Size of bytes to unpack
-     */
-    template<typename Char>
-    inline NS_IMPL::CManipulatorRawPtr<Char> raw(std::basic_string<Char> & c, size_t len){
-        const size_t old = c.size();
-        c.append(len, 0);
-        return NS_IMPL::CManipulatorRawPtr<Char>(&c[old], len);
-    }
-
-    /**
-     * @brief Pack a string.
      * Sample code for COutByteStreamBasic:
      * @code{.cpp}
      * COutByteStream out;
      *
-     * string c;    // a string to pack
+     * string c = "abcde";    // a string to pack
      *
      * out << Mapip::raw(c);    // pack the string
      * // This is equivalent to:
      * // for(int i = 0;i < c.size();++i)
      * //     out << c[i];
      * @endcode
-     * @param[in] c Object to pack
-     * @param[out] sz If not @c NULL, receive size of bytes packed.
-     */
-    template<typename Char>
-    inline NS_IMPL::CManipulatorRawPtr<const Char> raw(const std::basic_string<Char> & c, size_t * sz = NULL){
-        if(sz)
-            *sz = c.size();
-        return NS_IMPL::CManipulatorRawPtr<const Char>(c.c_str(), c.size());
-    }
-
-    //读取/写入迭代器范围[first, last)（无长度字段）
-    /**
-     * @brief Pack/unpack elements in a range of iterators.
-     * Sample code for CInByteStream:
+     * @par Iterator range
+     * Sometimes you only have a begin and an end iterators to do the packing/unpacking. A `size_t
+     * *` parameter might be provided to retrieve the number of elements actually packed/unpacked.
+     * If it doesn't matter, just ignore it.
+     * @n Sample code for CInByteStream:
      * @code{.cpp}
      * CInByteStream in(buf, sz);
      *
      * list<int> c;
-     * auto first = c.begin();  // start iterator
-     * auto last = c.end();     // end iterator
+     * list<int>::iterator first = c.begin();  // start iterator
+     * list<int>::iterator last = c.end();     // end iterator
+     * size_t sz;
      *
-     * in >> Mapip::raw(first, last);  // unpack certain integers to range [first, last)
+     * in >> Mapip::raw(first, last, &sz);  // unpack certain integers to range [first, last), and
+     *                                      // store the number of elements unpaced in 'sz'
      * // This is equivalent to:
-     * // for(auto it = first;it != last;++it)
+     * // for(list<int>::iterator it = first;it != last;++it)
      * //     in >> *it;
      * @endcode
      * Sample code for COutByteStreamBasic:
@@ -261,41 +192,60 @@ namespace Manip{
      * COutByteStream out;
      *
      * list<int> c;
-     * auto first = c.begin();  // start iterator
-     * auto last = c.end();     // end iterator
+     * list<int>::const_iterator first = c.begin();  // start iterator
+     * list<int>::const_iterator last = c.end();     // end iterator
      *
-     * out << Mapip::raw(first, last);    // pack certain integers from range [first, last)
+     * out << Mapip::raw(first, last);  // pack certain integers from range [first, last), not
+     *                                  // interested in the number of elements packed
      * // This is equivalent to:
-     * // for(auto it = first;it != last;++it)
+     * // for(list<int>::const_iterator it = first;it != last;++it)
      * //     out << *it;
      * @endcode
-     * @param[inout] first Start iterator
-     * @param[inout] last End iterator
-     * @param[out] sz If not @c NULL, receive the number of elements packed/unpacked
-     */
+     * @{ */
+
+    template<class T, size_t N>
+    inline NS_IMPL::CManipulatorRawPtr<T> raw(T (&c)[N]){
+        return NS_IMPL::CManipulatorRawPtr<T>(c, N);
+    }
+
+    template<class T>
+    inline NS_IMPL::CManipulatorRawPtr<T> raw(T * c, size_t sz){
+        return NS_IMPL::CManipulatorRawPtr<T>(c, sz);
+    }
+
+    template<class T>
+    inline NS_IMPL::CManipulatorRawPtr<T> raw(std::vector<T> & c, size_t sz){
+        const size_t old = c.size();
+        c.resize(old + sz);
+        return NS_IMPL::CManipulatorRawPtr<T>(&c[old], sz);
+    }
+
+    template<class T>
+    inline NS_IMPL::CManipulatorRawPtr<const T> raw(const std::vector<T> & c, size_t * sz = NULL){
+        if(sz)
+            *sz = c.size();
+        return NS_IMPL::CManipulatorRawPtr<const T>(&c[0], c.size());
+    }
+
+    template<typename Char>
+    inline NS_IMPL::CManipulatorRawPtr<Char> raw(std::basic_string<Char> & c, size_t len){
+        const size_t old = c.size();
+        c.append(len, 0);
+        return NS_IMPL::CManipulatorRawPtr<Char>(&c[old], len);
+    }
+
+    template<typename Char>
+    inline NS_IMPL::CManipulatorRawPtr<const Char> raw(const std::basic_string<Char> & c, size_t * sz = NULL){
+        if(sz)
+            *sz = c.size();
+        return NS_IMPL::CManipulatorRawPtr<const Char>(c.c_str(), c.size());
+    }
+
     template<class ForwardIter>
     inline NS_IMPL::CManipulatorRawRange<ForwardIter> raw(ForwardIter first, ForwardIter last, size_t * sz = NULL){
         return NS_IMPL::CManipulatorRawRange<ForwardIter>(first, last, sz);
     }
 
-    /**
-     * @brief Unpack elements and append to a container.
-     * Sample code for CInByteStream:
-     * @code{.cpp}
-     * CInByteStream in(buf, sz);
-     *
-     * deque<int> c;    // a container to receive unpacked elements
-     *
-     * in >> Mapip::raw(c, sz);  // unpack 'sz' integers, and append them to 'c'
-     * // This is equivalent to:
-     * // for(int i = 0, v;i < sz;++i){
-     * //     in >> v;
-     * //     c.push_back(v);
-     * // }
-     * @endcode
-     * @param c A container to receive unpacked elements
-     * @param sz Number of elements to unpack
-     */
     template<class T>
     inline NS_IMPL::CManipulatorRawCont<T> raw(T & c, size_t sz){
         return NS_IMPL::CManipulatorRawCont<T>(c, sz, NULL);
@@ -307,7 +257,239 @@ namespace Manip{
     }
     /**  @} */
 
-    //读取/写入数组（有长度字段）
+    /**
+     * @name Mapip::array
+     * @brief Pack/unpack a range of elements, @em with leading size field.
+     * @c Mapip::array is convenient for pack/unpack a number of elements, like an array, a
+     * string of characters, or a container. It is very similar to @c Manip::raw, except that a
+     * size field (the number elements) is packed/unpacked first before the elements.
+     * By default, the type of leading size field is @c uint16_t, unless you specify it explicitly.
+     * @par Array
+     * Sample code for CInByteStream:
+     * @code{.cpp}
+     * CInByteStream in(buf, sz);
+     *
+     * int c[10];   // an array to receive unpacked results
+     * uint8_t sz;  // an integer to retrieve the number of elements actually unpacked
+     *
+     * in >> Mapip::array(c, &sz);  // firstly unpack an uint8_t to 'sz' as the number of following
+     *                              // elements, then unpack 'sz' integers to 'c'
+     * // This is equivalent to:
+     * // in >> sz;
+     * // for(int i = 0;i < sz;++i)
+     * //     in >> c[i];
+     * @endcode
+     * Note that if @c sz is larger than the size @c c can hold, the whole operation fails with status
+     * of @c in set to non-zero.
+     * @n Sample code for COutByteStreamBasic:
+     * @code{.cpp}
+     * COutByteStream out;
+     *
+     * int c[5];    // an array to pack
+     *
+     * out << Mapip::array<uint16_t>(c);   // pack a uint16_t equals to 5, then pack 5 integers
+     * // This is equivalent to:
+     * // out << uint16_t(5);
+     * // for(int i = 0;i < 5;++i)
+     * //     out << c[i];
+     * @endcode
+     * Note that you @em must specify the type of leading size.
+     * @n If size of array cannot be deduced automatically, a parameter must be provided.
+     * @n Sample code for CInByteStream:
+     * @code{.cpp}
+     * CInByteStream in(buf, sz);
+     *
+     * int * c = new int[sz];   // an array to receive unpacked results
+     * uint16_t real_sz;        // an integer to retrieve the number of elements actually unpacked
+     *
+     * in >> Mapip::array(c, sz, &real_sz);// firstly unpack a uin16_t to 'real_sz' as the number of
+     *                                     // following elements, then unpack 'real_sz' integers
+     * // This is equivalent to:
+     * // in >> real_sz;
+     * // for(int i = 0;i < real_sz;++i)
+     * //     in >> c[i];
+     * @endcode
+     * Note that if @c real_sz is larger than @c sz, the whole operation fails with status of @c in
+     * is set to non-zero.
+     * @n Sample code for COutByteStreamBasic:
+     * @code{.cpp}
+     * COutByteStream out;
+     *
+     * int * c = new int[sz];    // an array to pack
+     *
+     * out << Mapip::array<uint16_t>(c, sz);    // pack a uint16_t equals to 'sz' first, then pack
+     *                                          // 'sz' integers
+     * // This is equivalent to:
+     * // out << uint16_t(sz);
+     * // for(int i = 0;i < sz;++i)
+     * //     out << c[i];
+     * @endcode
+     * Note that you @em must specify the type of leading size.
+     * @par Containers
+     * Most STL containers are well supported, e.g. @c vector, @c list, @c deque, @c set/multiset,
+     * @c map/multimap, etc.
+     * @n Sample code for CInByteStream:
+     * @code{.cpp}
+     * CInByteStream in(buf, sz);
+     *
+     * vector<int> c;    // a container to receive unpacked results
+     *
+     * in >> Mapip::array(c);  // firstly unpack a uint16_t as the number of following elements,
+     *                         // then unpack that number of integers, and append them to 'c'
+     * // This is equivalent to:
+     * // uint16_t sz;
+     * // in >> sz;
+     * // for(int i = 0, v;i < sz;++i){
+     * //     in >> v;
+     * //     c.insert(c.end(), v);
+     * // }
+     * @endcode
+     * If the leading size is not @c uint16_t, you can specify it like this:
+     * @code{.cpp}
+     * in >> Mapip::array<uint8_t>(c);  // firstly unpack a uint8_t as the number of following
+     *                                  // elements, then unpack that number of integers, and
+     *                                  // append them to 'c'
+     * @endcode
+     * If there is a limitation of elements, an additional parameter may be provided, and the
+     * leading size has the same type as the second parameter:
+     * @code{.cpp}
+     * uint32_t max_sz = 100;
+     * in >> Mapip::array(c, max_sz);   // firstly unpack a uint32_t as the number of following
+     *                                  // elements, then unpack that number of integers, and
+     *                                  // append them to 'c'
+     * @endcode
+     * If the leading size unpacked is larger than @c max_sz, the operation fails and status of @c
+     * in is set to non-zero.
+     * @n Sample code for COutByteStreamBasic:
+     * @code{.cpp}
+     * COutByteStream out;
+     *
+     * vector<int> c;    // an vector to pack
+     *
+     * out << Mapip::array(c);  // firstly pack a uint16_t equals to 'c.size()', then pack all
+     *                          // elements in 'c'
+     * // This is equivalent to:
+     * // out << uint16_t(c.size());
+     * // for(int i = 0;i < c.size();++i)
+     * //     out << c[i];
+     * @endcode
+     * Note that you can specify the type of leading size like this:
+     * @code{.cpp}
+     * out << Mapip::array<uint8_t>(c); // firstly pack a uint8_t equals to 'c.size()', then pack
+     *                                  //all elements in 'c'
+     * @endcode
+     * @par String
+     * A C-style string is essentially an array of characters.
+     * @n Sample code for CInByteStream:
+     * @code{.cpp}
+     * CInByteStream in(buf, sz);
+     *
+     * char * c = new char[sz]; // an array of chars to receive unpacked results
+     * uint16_t real_sz;        // an integer to retrieve the number characters actually unpacked
+     *
+     * in >> Mapip::array(c, sz, &real_sz);  // firstly unpack a uint16_t to 'real_sz' as the
+     *                                       // number of following characters, then unpack
+     *                                       // 'real_sz' characters to 'c'
+     * // This is equivalent to:
+     * // in >> real_sz;
+     * // for(int i = 0;i < real_sz;++i)
+     * //     in >> c[i];
+     * @endcode
+     * If @c real_sz is larger than @c sz, this operation fails and status of @c in is set to
+     * non-zero.
+     * @n Sample code for COutByteStreamBasic:
+     * @code{.cpp}
+     * COutByteStream out;
+     *
+     * const char * c = "abcde";    // a C-style string to pack
+     *
+     * out << Mapip::array<uint8_t>(c, strlen(c));    // firstly pack a uint8_t equals to
+     *                                                // 'strlen(c)', then pack the content of 'c'
+     * // This is equivalent to:
+     * // out << uint8_t(strlen(c));
+     * // for(int i = 0;i < strlen(c);++i)
+     * //     out << c[i];
+     * @endcode
+     * Note that the type of leading size @em must be provided.
+     * @n An @c std::string is a container of characters.
+     * @n Sample code for CInByteStream:
+     * @code{.cpp}
+     * CInByteStream in(buf, sz);
+     *
+     * string c;    // an object to receive unpacked data
+     *
+     * in >> Mapip::array(c);  // firstly unpack a uint16_t as the number of following characters,
+     *                         // then unpack that number of bytes of data, and append them to 'c'
+     * // This is equivalent to:
+     * // uint16_t sz;
+     * // in >> sz;
+     * // for(int i = 0;i < sz;++i){
+     * //     char v;
+     * //     in >> v;
+     * //     c.push_back(v);
+     * // }
+     * @endcode
+     * You can specify the type of leading size like this:
+     * @code{.cpp}
+     * in >> Mapip::array<uint8_t>(c);  // firstly unpack a uint8_t as the number of following
+     *                                  // characters, then unpack that number of bytes of data,
+     *                                  // and append them to 'c'
+     * @endcode
+     * If there is a limitation of bytes to unpack, an additional parameter may be provided, and
+     * the type of leading size is the same as the second parameter:
+     * @code{.cpp}
+     * uint8_t max_sz = 100;
+     * in >> Mapip::array(c, max_sz);   // firstly unpack a uint8_t as the number of following
+     *                                  // characters, then unpack that number of bytes of data,
+     *                                  // and append them to 'c'
+     * @endcode
+     * If the leading size unpacked is larger than @c max_sz, the operation fails and status of @c
+     * in is set to non-zero.
+     * @n Sample code for COutByteStreamBasic:
+     * @code{.cpp}
+     * COutByteStream out;
+     *
+     * string c = "abcde";    // a string to pack
+     *
+     * out << Mapip::array(c);  // firstly pack a uint16_t equals to 'c.size()', then pack the
+     *                          // content of 'c'
+     * // This is equivalent to:
+     * // out << uint16_t(c.size());
+     * // for(int i = 0;i < c.size();++i)
+     * //     out << c[i];
+     * @endcode
+     * If the type of leading size isn't @c uint16_t, you can specify it like this:
+     * @code{.cpp}
+     * out << Mapip::array<uint8_t>(c); // firstly pack a uint8_t equals to 'c.size()', then pack
+     *                                  // the content of 'c'
+     * @endcode
+     * @par Iterator range (pack only)
+     * Sometimes you only have a begin and an end iterators to do the packing.
+     * @n Sample code for COutByteStreamBasic:
+     * @code{.cpp}
+     * COutByteStream out;
+     *
+     * list<int> c;
+     * list<int>::const_iterator first = c.begin();  // start iterator
+     * list<int>::const_iterator last = c.end();     // end iterator
+     *
+     * out << Mapip::array<uint16_t>(first, last);// firstly pack a uint16_t equals to the number of
+     *                                            // elements in range [first, last), then pack all
+     *                                            // integers the range
+     * // This is equivalent to:
+     * // out << uint16_t(distance(first, last));
+     * // for(list<int>::const_iterator it = first;it != last;++it)
+     * //     out << *it;
+     * @endcode
+     * An additional integer parameter could be provided to retrieve the number of elements packed,
+     * and it will have the same type of the leading size:
+     * @code{.cpp}
+     * uint8_t sz;
+     * out << Mapip::array(first, last, &sz);   // firstly pack a uint8_t equals to the number of
+     *                                          // elements in range [first, last), then pack all
+     *                                          // integers in the range
+     * @endcode
+     * @{ */
     template<typename LenT, class T, size_t N>
     inline NS_IMPL::CManipulatorArrayPtr<LenT, T> array(T (&c)[N], LenT * real_sz){
         return NS_IMPL::CManipulatorArrayPtr<LenT, T>(c, N, real_sz);
@@ -328,7 +510,6 @@ namespace Manip{
         return NS_IMPL::CManipulatorArrayPtr<LenT, const T>(c, sz, NULL);
     }
 
-    //读取/写入容器（有长度字段）
     template<typename LenT, class T>
     inline NS_IMPL::CManipulatorArrayCont<LenT, T> array(T & c, LenT max_size = 0){
         return NS_IMPL::CManipulatorArrayCont<LenT, T>(c, max_size);
@@ -349,25 +530,75 @@ namespace Manip{
         return NS_IMPL::CManipulatorArrayCont<uint16_t, const T>(c, 0);
     }
 
-    //写入迭代器范围[first, last)（有长度字段）
     template<typename LenT, class ForwardIter>
     inline NS_IMPL::CManipulatorArrayRange<LenT, ForwardIter> array(ForwardIter first, ForwardIter last, LenT * sz = NULL){
         return NS_IMPL::CManipulatorArrayRange<LenT, ForwardIter>(first, last, sz);
     }
+    /**  @} */
 
-    //设置CDataStreamBase的数据为网络字节序
+    /**
+     * @name Byte order
+     * APIs for changing CInByteStream / COutByteStreamBasic object's byte order, both permanently
+     * and temporarily.
+     * @par Change byte order permanently.
+     * Sample code:
+     * @code{.cpp}
+     * CInByteStream in(buf, sz);
+     * COutByteStream out;
+     *
+     * // Set the underlying data buffer as Net Byte Order (Big Endian).
+     * in >> Mapip::net_order;
+     * out << Manip::net_order;
+     *
+     * // Set the underlying data buffer as Host Byte Order.
+     * in >> Mapip::host_order;
+     * out << Manip::host_order;
+     *
+     * // Set the underlying data buffer as Little Endian.
+     * in >> Mapip::little_endian;
+     * out << Manip::little_endian;
+     *
+     * // Set the underlying data buffer as Big Endian (Net Byte Order).
+     * in >> Mapip::big_endian;
+     * out << Manip::big_endian;
+     * @endcode
+     * @par Change byte order temporarily.
+     * Set byte order and pack/unpack data, then restore old byte order.
+     * @n Sample code:
+     * @code{.cpp}
+     * CInByteStream in(buf, sz);
+     * COutByteStream out;
+     * int val = 10;
+     *
+     * in >> Mapip::net_order_value(val);   // unpack an integer using Net Byte Order, despite
+     *                                      // the actual byte order of 'in'
+     * out << Mapip::net_order_value(val);  // pack an integer using Net Byte Order, dspite the
+     *                                      // actual byte order of 'out'
+     *
+     * in >> Mapip::host_order_value(val);  // unpack an integer using Host Byte Order, despite
+     *                                      // the actual byte order of 'in'
+     * out << Mapip::host_order_value(val); // pack an integer using Host Byte Order, dspite the
+     *                                      // actual byte order of 'out'
+     *
+     * in >> Mapip::little_endian_value(val);   // unpack an integer using Little Endian, despite
+     *                                          // the actual byte order of 'in'
+     * out << Mapip::little_endian_value(val);  // pack an integer using Little Endian, dspite the
+     *                                          // actual byte order of 'out'
+     *
+     * in >> Mapip::big_endian_value(val);  // unpack an integer using Big Endian, despite the
+     *                                      // actual byte order of 'in'
+     * out << Mapip::big_endian_value(val); // pack an integer using Big Endian, dspite the actual
+     *                                      // byte order of 'out'
+     * @endcode
+     * @{ */
     inline void net_order(NS_IMPL::CDataStreamBase & ds){ds.netByteOrder(true);}
 
-    //设置CDataStreamBase的数据为主机字节序
     inline void host_order(NS_IMPL::CDataStreamBase & ds){ds.netByteOrder(false);}
 
-    //设置CDataStreamBase的数据为小端字节序(little endian)
     inline void little_endian(NS_IMPL::CDataStreamBase & ds){ds.littleEndian(true);}
 
-    //设置CDataStreamBase的数据为大端字节序(big endian，网络序)
     inline void big_endian(NS_IMPL::CDataStreamBase & ds){ds.littleEndian(false);}
 
-    //临时设置CDataStreamBase的数据为网络字节序，然后读写字段
     template<class T>
     inline NS_IMPL::CManipulatorValueByteOrder<T> net_order_value(T & val){
         return NS_IMPL::CManipulatorValueByteOrder<T>(val, net_order);
@@ -378,7 +609,6 @@ namespace Manip{
         return NS_IMPL::CManipulatorValueByteOrder<const T>(val, net_order);
     }
 
-    //临时设置CDataStreamBase的数据为主机字节序，然后读写字段
     template<class T>
     inline NS_IMPL::CManipulatorValueByteOrder<T> host_order_value(T & val){
         return NS_IMPL::CManipulatorValueByteOrder<T>(val, host_order);
@@ -389,7 +619,6 @@ namespace Manip{
         return NS_IMPL::CManipulatorValueByteOrder<const T>(val, host_order);
     }
 
-    //临时设置CDataStreamBase的数据为小端节序(little endian)，然后读写字段
     template<class T>
     inline NS_IMPL::CManipulatorValueByteOrder<T> little_endian_value(T & val){
         return NS_IMPL::CManipulatorValueByteOrder<T>(val, little_endian);
@@ -400,7 +629,6 @@ namespace Manip{
         return NS_IMPL::CManipulatorValueByteOrder<const T>(val, little_endian);
     }
 
-    //临时设置CDataStreamBase的数据为大端节序(big endian，网络序)，然后读写字段
     template<class T>
     inline NS_IMPL::CManipulatorValueByteOrder<T> big_endian_value(T & val){
         return NS_IMPL::CManipulatorValueByteOrder<T>(val, big_endian);
@@ -410,11 +638,76 @@ namespace Manip{
     inline NS_IMPL::CManipulatorValueByteOrder<const T> big_endian_value(const T & val){
         return NS_IMPL::CManipulatorValueByteOrder<const T>(val, big_endian);
     }
+    /**  @} */
 
-    //设置cur指针的值
+    /**
+     * @name Current position
+     * APIs for changing current position, both permanently and temporarily.
+     * @par Change current postion permanently
+     * Sample code:
+     * @code{.cpp}
+     * CInByteStream in(buf, sz);
+     * COutByteStream out;
+     *
+     * // Set current position absolutely
+     * in >> Mapip::seek(10);   // Same as in.seek(10)
+     * out << Mapip::seek(10);  // Same as out.seek(10)
+     *
+     * // Move current position relatively
+     * in >> Mapip::skip(10);   // Same as in.skip(10)
+     * out << Mapip::skip(10);  // Same as out.skip(10)
+     * uint32_t off = -10;
+     * in >> Mapip::skip(&off);   // Same as in.skip(off)
+     * out << Mapip::skip(&off);  // Same as out.skip(off)
+     *
+     * // Fill while moving
+     * int fill = 'a';
+     * in >> Mapip::skip(10, fill);   // Same as in.skip(10, fill)
+     * out << Mapip::skip(10, fill);  // Same as out.skip(10, fill)
+     * uint32_t off = -10;
+     * in >> Mapip::skip(&off, fill);   // Same as in.skip(off, fill)
+     * out << Mapip::skip(&off, fill);  // Same as out.skip(off, fill)
+     * @endcode
+     * @par Change current postion temporarily
+     * Move current position and pack/unpack data, then restore old current position.
+     * @n Sample code:
+     * @code{.cpp}
+     * CInByteStream in(buf, sz);
+     * COutByteStream out;
+     * int val = 100;
+     *
+     * // Unpack data from an absolute position
+     * in >> Mapip::offset_value(10, val);
+     * // This is equivalent to:
+     * // size_t old = in.cur();
+     * // in.seek(10);
+     * // in >> val;
+     * // in.seek(old);
+     *
+     * // Pack data to an absolute position
+     * out << Mapip::offset_value(10, val);
+     * // This is equivalent to:
+     * // size_t old = out.cur();
+     * // out.seek(10);
+     * // out << val;
+     * // out.seek(old);
+     * @endcode
+     * @par Insert data (pack only)
+     * Sometimes you need to @a insert a value to a particular position in already packed data,
+     * which means all existing data after that position need to move forward, to make room for
+     * the value. This operation could be complex without @c Manip::insert.
+     * @n Sample code:
+     * @code{.cpp}
+     * COutByteStream out;
+     * int val = 100;
+     *
+     * out << Mapip::insert(10, val);   // pack 'val' at absolute position 10. Any existing data
+     *                                  // after this position will move forward by 'sizeof val'
+     *                                  // bytes to make room for 'val'
+     * @endcode
+     * @{ */
     inline NS_IMPL::CManipulatorSeek seek(size_t pos){return NS_IMPL::CManipulatorSeek(pos);}
 
-    //修改cur指针的值为(cur + off)
     inline NS_IMPL::CManipulatorSkip skip(ssize_t off){return NS_IMPL::CManipulatorSkip(off);}
 
     inline NS_IMPL::CManipulatorSkipFill skip(ssize_t off, int fill){return NS_IMPL::CManipulatorSkipFill(off, fill);}
@@ -425,7 +718,6 @@ namespace Manip{
     template<typename T>
     inline NS_IMPL::CManipulatorSkipPtrFill<T> skip(T * off, int fill){return NS_IMPL::CManipulatorSkipPtrFill<T>(off);}
 
-    //在指定位置读写字段，不改变cur指针的值
     template<class T>
     inline NS_IMPL::CManipulatorOffsetValue<T> offset_value(size_t pos, T & val){
         return NS_IMPL::CManipulatorOffsetValue<T>(pos, val);
@@ -436,64 +728,283 @@ namespace Manip{
         return NS_IMPL::CManipulatorOffsetValue<const T>(pos, val);
     }
 
-    //在指定位置插入字段
-    //如果pos在cur指针之前，则写入val，并且后面数据相应后移
-    //如果pos在cur指针之后，则先seek(pos)，然后写入val
     template<class T>
     inline NS_IMPL::CManipulatorInsert<T> insert(size_t pos, const T & val){
         return NS_IMPL::CManipulatorInsert<T>(pos, val);
     }
+    /**  @} */
 
-    //读写protobuf消息
+    /**
+     * @brief Pack/unpack [Protocol Buffers](https://github.com/google/protobuf) messages.
+     * This manipulator makes protobuf messages easily cooperative with other data formats.
+     * Packing/unpacking a protobuf message is as simple as for an integer. Boundary checks are
+     * automatically done, data pointers are efficiently handled.
+     * @n Sample code for CInByteStream:
+     * @code{.cpp}
+     * CInByteStream in(buf, sz);
+     *
+     * AnyMessage msg;  // any protobuf message object
+     *
+     * in >> Manip::protobuf(msg);  // unpack 'msg' from all left data of 'in'
+     * @endcode
+     * By default, Manip::protobuf will use all left data of @c in to initialize protobuf message
+     * object, which means the message should be the last value of @c in.
+     * @n But if that's not the case, you must provide a size parameter to limit the reading:
+     * @code{.cpp}
+     * in >> Manip::protobuf(msg, 50);  // unpack 'msg' from 50 bytes of data of 'in'
+     * @endcode
+     * @note In both cases Manip::protobuf will try to use all data available to initialize the
+     * message. If data size is incorrect, no matter smaller or larger than actually needed, this
+     * operation will fail and status of @c in will be set to non-zero.
+     *
+     * Sample code for COutByteStreamBasic:
+     * @code{.cpp}
+     * COutByteStream out;
+     *
+     * AnyMessage msg;  // any protobuf message object
+     *
+     * out << Manip::protobuf(msg); // pack 'msg'
+     * @endcode
+     * @tparam T Any subclass of @c google::protobuf::MessageLite
+     * @param[inout] msg A message object
+     * @param[in] size Size of bytes read when unpacking @c msg
+     */
     template<class T>
     inline NS_IMPL::CManipulatorProtobuf<T> protobuf(T & msg, size_t size = size_t(-1)){
         return NS_IMPL::CManipulatorProtobuf<T>(msg, size);
     }
 
-    //使用Base 128 Varints编解码整数
+    /**
+     * @brief Pack integer using [Base 128 Varints]
+     * (http://developers.google.com/protocol-buffers/docs/encoding#varints) encoding.
+     * Varint encoding is compact, byte order independent, and efficient. This manipulator makes it
+     * super easy to take advantage of it, and supports all primitive integer types, from @c char to
+     * @c wchar_t to `long long`.
+     * @n Sample Code:
+     * @code{.cpp}
+     * COutByteStream out;
+     *
+     * out << Manip::varint(1000);  // pack number '1000' using Base 128 Varints encoding
+     * @endcode
+     * @tparam T An integer type
+     * @param val An integer
+     */
     template<typename T>
     inline NS_IMPL::CManipulatorVarint<const T> varint(const T & val){
         return NS_IMPL::CManipulatorVarint<const T>(val);
     }
 
+    /**
+     * @brief Unpack integer using [Base 128 Varints]
+     * (http://developers.google.com/protocol-buffers/docs/encoding#varints) encoding.
+     * Sample Code:
+     * @code{.cpp}
+     * CInByteStream in(buf, sz);
+     * int val;
+     *
+     * in >> Manip::varint(val);  // unpack an integer to 'val' using Base 128 Varints encoding
+     * @endcode
+     * @tparam T An integer type
+     * @param[out] val An integer to receive the result
+     */
     template<typename T>
     inline NS_IMPL::CManipulatorVarint<T> varint(T & val){
         return NS_IMPL::CManipulatorVarint<T>(val);
     }
 
-    //设置临时边界，在撤除之前，编解码数据不得超过边界
-    //sz: (边界位置 - cur指针)的值
+    /**
+     * @brief Set up a stub.
+     * Any packing/unpacking operation cannot go beyond the stub, or it fails with status set
+     * to non-zero.
+     * @n Stubs can stack, the top most one is currently in effect. After popping up it, the next
+     * top one takes effect immediately, until there is no stubs.
+     * @n A common use of stubs is to create a robust hierarchical data structure in which errors
+     * in one part never affect other parts. Besides, additional boundary checks make defects
+     * harder to hide.
+     * @n When creating a stub, you need provide offset of the stub, @c sz, relative to *current
+     * pointer*, i.e. the position of the stub is `cur() + sz`.
+     * @n Sample code for CInByteStream:
+     * @code{.cpp}
+     * CInByteStream in(buf, sz);
+     * uint32_t val;
+     *
+     * in >> Manip::stub(4);    // Set up a stub at (in.cur() + 4)
+     * in >> val;               // Fine, unpack a 4-byte integer
+     * in >> val;               // FAIL! Can NOT go beyond the stub
+     * @endcode
+     * Sample code for COutByteStreamBasic:
+     * @code{.cpp}
+     * COutByteStream out;
+     *
+     * out << Mapip::stub(4);   // Set up a stub at (out.cur() + 4)
+     * out << uint32_t(100);    // Fine, pack a 4-byte integer
+     * out << 'a';              // FAIL! Can NOT go beyong the stub
+     * @endcode
+     * @param sz Offset of the stub, relative to *current pointer*
+     */
     inline NS_IMPL::CManipulatorStubPush stub(size_t sz){
         return NS_IMPL::CManipulatorStubPush(sz);
     }
 
-    //撤除最近一次设置的临时边界
-    //align: 是否将cur()调整到边界位置
-    //check: 是否检查cur()等于边界位置
+    /**
+     * @brief Demolish the top most stub.
+     * This manipulator demolishes current stub, check and align *current pointer* if needed. The
+     * next top stub will take effect, until there is no stubs any more.
+     * @n Sample code for CInByteStream:
+     * @code{.cpp}
+     * CInByteStream in(buf, sz);
+     * uint32_t val;
+     *
+     * in >> Manip::stub(4);    // Set up a stub at (in.cur() + 4)
+     * in >> val;               // Fine, unpack a 4-byte integer
+     *
+     * in >> Mapip::stub_pop()  // Remove the stub
+     * in >> val;               // Fine, unpack another 4-byte integer
+     * @endcode
+     * Sample code for COutByteStreamBasic:
+     * @code{.cpp}
+     * COutByteStream out;
+     *
+     * out << Mapip::stub(4);   // Set up a stub at (out.cur() + 4)
+     * out << uint32_t(100);    // Fine, pack a 4-byte integer
+     *
+     * out << Manip::stub_pop();// remove the stub
+     * out << 'a';              // Fine, pack a char
+     * @endcode
+     * @param align
+     *   @li @c true: Align *current pointer* to the position of removed stub. This is useful when
+     *   you want to ignore any data in a sub-structure.
+     *   @li @c false: Do not change *current pointer*.
+     * @param check
+     *   @li @c true: Assert if *current pointer* equals to the position of removed stub. If failed,
+     *   status will be set to non-zero. This is useful when you cannot tolerate any errors in the
+     *   sub-structure.
+     *   @li @c false: Do not check.
+     */
     inline NS_IMPL::CManipulatorStubPop stub_pop(bool align = false, bool check = false){
         return NS_IMPL::CManipulatorStubPop(align, check);
     }
 
-    //对于CInByteStream: 如果有剩余数据，则设置错误码；否则，忽略
-    //对于COutByteStreamXXX: 调用对应的finish()
+    /**
+     * @name Manip::end
+     * End packing/unpacking operations.
+     * When all packing/unpacking operations finish, it's a good practice to announce an @c end
+     * explicitly.
+     * @n For unpacking operations (CInByteStream), left data size will be checked. If it's not
+     * zero, status of CInByteStream object will be set to non-zero. Because usually some left data
+     * means you have missed something, or there is a misunderstanding about the protocol.
+     * @n For packing operations (COutByteStreamBasic), it's always necessary to @c end.
+     * Because the underlying data buffer (whether it's internal or external) may have reserved
+     * some room for performance, so an adjustment is critical to correct its size. Besides, it will
+     * call corresponding @ref COutByteStreamBasic::finish to export data.
+     * @note Ending operation will clear all stubs, without any alignments or checks.
+     * @sa COutByteStreamBasic::finish
+     * @{ */
+    /**
+     * @brief End operations for @ref CInByteStream, @ref COutByteStreamStrRef, @ref
+     * COutByteStreamVecRef.
+     * Sample code for CInByteStream:
+     * @code{.cpp}
+     * CInByteStream in(buf, 8);
+     * uint32_t val;
+     *
+     * in >> val;               // unpack a 4-byte integer
+     * // in >> Manip::end;     // FAIL! There are 4 bytes left
+     *
+     * in >> val;               // unpack another 4-byte integer
+     * in >> Manip::end;        // Fine, no left data
+     * @endcode
+     * Sample code for COutByteStreamBasic:
+     * @code{.cpp}
+     * string buf;
+     * COutByteStreamStrRef out(buf);   // 'buf' is the underlying buffer for 'out'
+     *
+     * out << uint32_t(100);        // pack a 4-byte integer,
+     * // assert(buf.size() == 4);  // ERROR! buf.size() >= 4
+     *
+     * out << Manip::end;           // adjust buf.size()
+     * assert(buf.size() == 4);     // Correct
+     * @endcode
+     */
     inline NS_IMPL::CManipulatorEnd<void, void> end(){
         return NS_IMPL::CManipulatorEnd<void, void>();
     }
 
+    /**
+     * @brief End operations for @ref COutByteStreamBuf, @ref COutByteStreamStrRef, @ref
+     * COutByteStreamVecRef.
+     * This manipulator will also store the byte size of underlying data buffer in @c sz.
+     * @n Sample code:
+     * @code{.cpp}
+     * char * buf = new char[10];
+     * COutByteStreamBuf out(buf, 10);  // 'buf' is the underlying buffer for 'out'
+     *
+     * out << uint32_t(100);        // pack a 4-byte integer,
+     *
+     * size_t sz;
+     * out << Manip::end(&sz);      // set correct size to 'sz'
+     * assert(sz == 4);             // Correct
+     * @endcode
+     * @tparam SizeT Type of an integer
+     * @param[out] sz Pointer to an integer to receive the size of actual data
+     */
     template<typename SizeT>
     inline NS_IMPL::CManipulatorEnd<SizeT *, void> end(SizeT * sz){
         return NS_IMPL::CManipulatorEnd<SizeT *, void>(sz);
     }
 
+    /**
+     * @brief End operations for @ref COutByteStream / @ref COutByteStreamStr, @ref
+     * COutByteStreamStrRef, @ref COutByteStreamVec, @ref COutByteStreamVecRef.
+     * This manipulator will also export data to @c buf. If it's not empty, new data will append to
+     * it.
+     * @n Sample code:
+     * @code{.cpp}
+     * COutByteStream out;
+     *
+     * out << uint32_t(100);    // pack a 4-byte integer
+     *
+     * string buf;
+     * out << Manip::end(buf);  // export data to 'buf'
+     * assert(buf.size() == 4); // Correct
+     * @endcode
+     * @note Data copy is avoided whenever possible, e.g. @c buf is empty and the underlying buffer
+     * is internal (@ref COutByteStream / @ref COutByteStreamStr and @ref COutByteStreamVec).
+     * @tparam BufT Must be the same as the underlying buffer type, e.g. @c std::string for
+     *              @ref COutByteStream / @ref COutByteStreamStr, @ref COutByteStreamStrRef, or @c
+     *              std::vector<char> for @ref COutByteStreamVec, @ref COutByteStreamVecRef
+     * @param[out] buf A buffer to receive data
+     */
     template<class BufT>
     inline NS_IMPL::CManipulatorEnd<BufT, void> end(BufT & buf){
         return NS_IMPL::CManipulatorEnd<BufT, void>(buf);
     }
 
+    /**
+     * @brief End operations for @ref COutByteStream / @ref COutByteStreamStr, @ref
+     * COutByteStreamStrRef, @ref COutByteStreamVec, @ref COutByteStreamVecRef, @ref
+     * COutByteStreamBuf.
+     * Sample code;
+     * @code{.cpp}
+     * COutByteStream out;
+     *
+     * out << uint32_t(100);    // pack a 4-byte integer
+     *
+     * char * buf = new char[10];
+     * size_t sz = 10;
+     *
+     * out << Manip::end(buf, &sz); // export data to 'buf'
+     * assert(sz == 4);             // Correct
+     * @endcode
+     * @tparam CharT Must be the same as the underlying character type, e.g. @c char
+     * @param[out] buf Pointer to a byte array to receive the data
+     * @param[inout] sz Pass in as the length of @c dst; pass out as the real size of exported data
+     */
     template<typename CharT>
     inline NS_IMPL::CManipulatorEnd<CharT *, size_t *> end(CharT * buf, size_t * sz){
         return NS_IMPL::CManipulatorEnd<CharT *, size_t *>(buf, sz);
     }
+    /**  @} */
 
 }//namespace Manip
 
@@ -688,7 +1199,9 @@ public:
     const char * data() const{return (data_ + cur());}
     /**
      * @brief Get byte size of left data.
+     * If there are stubs, this function returns data size @em before current effective stub.
      * @return Bytes size of left data
+     * @sa Manip::stub Mapip::stub_pop
      */
     size_t left() const{return (getStub(len_) - cur());}
     /**
@@ -874,9 +1387,8 @@ public:
     }
     template<class T, class S>
     __Myt & operator >>(const NS_IMPL::CManipulatorEnd<T, S> & m){
-        if(good() && left())
+        if(clearStub() && left())
             status(1);
-        clearStub();
         return *this;
     }
     __Myt & operator >>(NS_IMPL::CManipulatorEnd<void, void> (*m)()){
@@ -1370,6 +1882,7 @@ public:
      * necessary to call this function or use @ref Manip::end() explicitly, to do some finishing
      * work, e.g. correcting the size of the byte buffer object.
      * @return @c true if succeeded; otherwise @c false
+     * @sa Manip::end
      */
     bool finish(){
         if(good() && !data_.exportData())
@@ -1385,6 +1898,7 @@ public:
      * @tparam SizeT An integer type
      * @param[out] sz Pointer to an integer to receive the size of the data
      * @return @c true if succeeded; otherwise @c false
+     * @sa Manip::end
      */
     template<typename SizeT>
     bool finish(SizeT * sz){
@@ -1400,6 +1914,7 @@ public:
      * will be used to avoid data copy.
      * @param[out] dst A buffer to receive data
      * @return @c true if succeeded; otherwise @c false
+     * @sa Manip::end
      */
     bool finish(buffer_type & dst){
         if(good() && !data_.exportData(dst))
@@ -1415,6 +1930,7 @@ public:
      * @param[out] dst Pointer to a byte array to receive the data
      * @param[inout] sz Pass in as the length of @c dst; pass out as the real size of exported data
      * @return @c true if succeeded; otherwise @c false
+     * @sa Manip::end
      */
     template<typename CharT>
     bool finish(CharT * dst, size_t * sz){

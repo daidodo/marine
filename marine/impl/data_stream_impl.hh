@@ -1,3 +1,28 @@
+/*
+ * Copyright (c) 2016 Zhao DAI <daidodo@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or any
+ * later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see accompanying file LICENSE.txt
+ * or <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * @file
+ * @brief Implementation of CInByteStream, COutByteStreamBasic.
+ * @warning This file is @em NOT intended for direct use.
+ * @author Zhao DAI
+ */
+
 #ifndef DOZERG_DATA_STREAM_IMPL_H_20081016
 #define DOZERG_DATA_STREAM_IMPL_H_20081016
 
@@ -10,46 +35,105 @@
 
 NS_IMPL_BEGIN
 
+/**
+ * @brief Base class of CInByteStream, COutByteStreamBasic.
+ * @warning This class is @em NOT intended for direct use.
+ */
 class CDataStreamBase
 {
     typedef bool (CDataStreamBase::*__SafeBool)() const;
 public:
-    static const bool kByteOrderDefault = true;    //默认使用网络字节序(true)还是本地字节序(false)
+    /** Byte order of the underlying data buffer, default Net Byte Order. */
+    static const bool kByteOrderDefault = true;
+#ifndef DOX_UNDOCUMENT_FLAG
     explicit CDataStreamBase(bool netByteOrder = kByteOrderDefault, int code = 0)
         : status_(code)
         , hostByteOrder_(tools::HostByteOrder())
         , dataByteOrder_(bo(netByteOrder))
     {}
-    //设置/获取错误码
-    //code:
-    //  0       正常状态
-    //  其他    出错状态
+#endif
+    /**
+     * @brief Set error status.
+     * If status is @em NOT 0, all packing/unpacking operations will fail.
+     * @param code New status
+     */
     void status(int code){status_ = code;}
+    /**
+     * @brief Get error status.
+     * @return Current status
+     */
     int status() const{return status_;}
-    //获取是否出错
-    //return:
-    //  true    出错(status_ != 0)
-    //  false   正常(status_ == 0)
+    /**
+     * @brief Test if current error status is @em NOT 0.
+     * Sample code:
+     * @code{.cpp}
+     * CInByteStream in(buf);
+     *
+     * if(!in){
+     *     // 'in' is in error status, something is wrong
+     * }
+     * @endcode
+     * @return
+     *   @li @c true: Status is @em NOT 0
+     *   @li @c false: Status is 0
+     */
     bool operator !() const{return !good();}
-    //return:
-    //  true    正常(status_ == 0)
-    //  false   出错(status_ != 0)
+    /**
+     * @brief Test if current error status is 0, same as @ref good().
+     * Sample code:
+     * @code{.cpp}
+     * CInByteStream in(buf);
+     *
+     * if(in){
+     *     // 'in' is in good status
+     * }
+     * @endcode
+     * @return
+     *   @li @c true: Status is 0
+     *   @li @c false: Status is @em NOT 0
+     * @sa good()
+     */
     operator __SafeBool() const{return (good() ? &CDataStreamBase::good : NULL);}
+    /**
+     * @brief Test if current error status is 0, same as `operator __SafeBool()`.
+     * Sample code:
+     * @code{.cpp}
+     * CInByteStream in(buf);
+     *
+     * if(in.good(){
+     *     // 'in' is in good status
+     * }
+     * @endcode
+     * @return
+     *   @li @c true: Status is 0
+     *   @li @c false: Status is @em NOT 0
+     */
     bool good() const{return (0 == status_);}
-    //设置/获取数据字节序
-    //nb:
-    //  true    net byte order
-    //  false   host byte order
+    /**
+     * @brief Set byte order.
+     * @param nb
+     *   @li @c true: Net Byte Order (Little Endian)
+     *   @li @c false: Host Byte Order
+     */
     void netByteOrder(bool nb){dataByteOrder_ = bo(nb);}
-    //endian:
-    //  true    little endian
-    //  false   big endian(net byte order)
+    /**
+     * @brief Set byte order.
+     * @param endian
+     *   @li @c true: Little endian (Net Byte Order)
+     *   @li @c false: Big endian
+     */
     void littleEndian(bool endian){dataByteOrder_ = endian;}
     //return:
     //  true    little endian
     //  false   big endian(net byte order)
+    /**
+     * @brief Get byte order.
+     * @return
+     *   @li @c true: Little endian
+     *   @li @c false: Big endian
+     */
     bool littleEndian() const{return dataByteOrder_;}
-    //输出可读字符串
+#ifndef DOX_UNDOCUMENT_FLAG
     std::string toString() const{
         CToString oss;
         oss<<"{status_="<<status_
@@ -107,14 +191,21 @@ protected:
         stubs_.clear();
         return true;
     }
+#endif
 private:
     bool bo(bool net){return (net ? false : hostByteOrder_);}
     //fields
-    int status_;                //错误状态码：0-正常; 其他-出错
-    const bool hostByteOrder_;  //当前环境的字节序：true-little endian; false-big endian(网络序)
-    bool dataByteOrder_;        //数据的字节序：true-little endian; false-big endian(网络序)
-    std::vector<size_t> stubs_; //临时边界栈
+    int status_;                // Error status
+    const bool hostByteOrder_;  // Byte order of the environment:
+                                //     true: little endian
+                                //     false: big endian
+    bool dataByteOrder_;        // Byte order of the data:
+                                //     true: little endian
+                                //     false: big endian
+    std::vector<size_t> stubs_;
 };
+
+#ifndef DOX_UNDOCUMENT_FLAG
 
 template<typename Char>
 inline void __buf_copy(Char * dst, const Char * src, size_t sz)
@@ -568,6 +659,8 @@ struct CManipulatorEnd<BufT, void>
     BufT & buf_;
     explicit CManipulatorEnd(BufT & buf):buf_(buf){}
 };
+
+#endif  // DOX_UNDOCUMENT_FLAG
 
 NS_IMPL_END
 
