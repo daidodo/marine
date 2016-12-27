@@ -1,3 +1,27 @@
+/*
+ * Copyright (c) 2016 Zhao DAI <daidodo@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or any
+ * later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see accompanying file LICENSE.txt
+ * or <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * @file
+ * @brief A convenient interface for epoll(7).
+ * @author Zhao DAI
+ */
+
 #ifndef DOZERG_EPOLL_H_20130506
 #define DOZERG_EPOLL_H_20130506
 
@@ -11,10 +35,17 @@ NS_SERVER_BEGIN
 
 class CEpoll;
 
+/**
+ * @brief Representation of @c epoll_event.
+ */
 struct CEpollEvent : private epoll_event
 {
     friend class CEpoll;
-    //事件描述，主要用于log
+    /**
+     * @brief Get events description.
+     * @param ev A bit mask representing events
+     * @return Events description
+     */
     static std::string EventsName(uint32_t ev){
         const char * const kName[] = {
             "EPOLLIN",
@@ -31,17 +62,35 @@ struct CEpollEvent : private epoll_event
         };
         return marine::tools::ToStringBits(ev, kName, ARRAY_SIZE(kName));
     }
-    //获取fd
+    /**
+     * @brief Get fd (file descriptor).
+     * @return fd of self
+     */
     int fd() const{return data.fd;}
-    //fd是否有效
+    /**
+     * @brief Test if @ref fd is valid.
+     * @return @c true if @ref fd is valid; @c false otherwise
+     */
     bool valid() const{return data.fd >= 0;}
-    //是否有读事件
+    /**
+     * @brief Test if there are read events.
+     * @return @c true if there are read events; @c false otherwise
+     */
     bool canInput() const{return events & EPOLLIN;}
-    //是否有写事件
+    /**
+     * @brief Test if there are write events.
+     * @return @c true if there are write events; @c false otherwise
+     */
     bool canOutput() const{return events & EPOLLOUT;}
-    //是否出错
+    /**
+     * @brief Test if there are errors.
+     * @return @c true if there are errors; @c false otherwise
+     */
     bool error() const{return (events & EPOLLERR) || (events & EPOLLHUP);}
-    //内部状态描述，主要用于log
+    /**
+     * @brief Get readable description.
+     * @return Readable description
+     */
     std::string toString() const{
         CToString oss;
         oss<<"{fd="<<data.fd
@@ -51,50 +100,76 @@ struct CEpollEvent : private epoll_event
     }
 };
 
+/**
+ * @brief Representation of epoll(7).
+ */
 class CEpoll : public IFileDesc
 {
 public:
     static const int kFdType = 6;
-    //返回fd类型和名称
+    /**
+     * @brief Get fd (file descriptor) type identifier.
+     * @return @c 6
+     */
     int fdType() const{return kFdType;}
+    /**
+     * @brief Get fd (file identifier) type name.
+     * @return @c "CEpoll"
+     */
     const char * fdTypeName() const{return "CEpoll";}
-    //创建epoll
+    /**
+     * @brief Initialize epoll.
+     * @return @c true if succeeded; @c false otherwise
+     */
     bool create(){
         if(!valid())
             fd_ = ::epoll_create(1000);
         return valid();
     }
-    //增加fd和flags
-    //flags: 详见man epoll_ctl，主要有
-    //  EPOLLIN     等待读事件
-    //  EPOLLOUT    等待写事件
-    //mod:
-    //  true    如果fd已在epoll里，则修改flags
-    //  false   如果fd已在epoll里，则返回失败
+    /**
+     * @brief Add fd (file descriptor) to epoll.
+     * @param fd File descriptor, a non-negative number
+     * @param flags A bit mask of events to monitor, e.g. @c EPOLLIN, @c EPOLLOUT
+     * @param mod
+     *   @li @c true: If @c fd is already in epoll, modify its @c flags
+     *   @li @c false: If @c fd is already in epoll, this operation will fail
+     * @return @c true if succeeded; @c false otherwise
+     */
     bool addFd(int fd, uint32_t flags, bool mod = true){
         return (valid()
                 && (ctrl(fd, flags, EPOLL_CTL_ADD)
                     || (mod && ctrl(fd, flags, EPOLL_CTL_MOD))));
     }
-    //修改fd的flags
-    //flags: 详见man epoll_ctl，主要有
-    //  EPOLLIN     等待读事件
-    //  EPOLLOUT    等待写事件
-    //add:
-    //  true    如果fd没在epoll里，则增加fd和flags
-    //  false   如果fd没在epoll里，则返回失败
+    /**
+     * @brief Modify flags of an fd (file descriptor).
+     * @param fd File descriptor, a non-negative number
+     * @param flags A bit mask of events to monitor, e.g. @c EPOLLIN, @c EPOLLOUT
+     * @param add
+     *   @li @c true: If @c fd is not in epoll, add it
+     *   @li @c false: If @c fd is not in epoll, this operation will fail
+     * @return
+     */
     bool modFd(int fd, uint32_t flags, bool add = true){
         return (valid()
                 && (ctrl(fd, flags, EPOLL_CTL_MOD)
                     || (add && ctrl(fd, flags, EPOLL_CTL_ADD))));
     }
-    //删除fd
+    /**
+     * @brief Remove an fd (file descriptor) from epoll.
+     * @param fd File descriptor, a non-negative number
+     * @return @c true if succeeded; @c false otherwise
+     */
     bool delFd(int fd){return (valid() && ctrl(fd, 0, EPOLL_CTL_DEL));}
-    //等待epoll事件
-    //timeoutMs:
-    //  0       不等待，直接返回
-    //  负数    永久等待
-    //  正数    等待timeoutMs毫秒
+    /**
+     * @brief Wait for epoll events.
+     * This function checks if there are pending events, and blocks current thread for an amount of
+     * time if necessary.
+     * @param timeoutMs
+     *   @li @c -1: Wait forever if there is no events
+     *   @li @c 0: Return immediately no matter there are events or not
+     *   @li Positive Number: Milliseconds to wait if there is no events
+     * @return @c true if there are events; @c false if time is out and there is no event
+     */
     bool wait(int timeoutMs = -1){
         if(!valid())
             return false;
@@ -106,11 +181,21 @@ public:
         revents_.resize(n);
         return true;
     }
-    //有读写事件的fd个数
+    /**
+     * @brief Get number of file descriptors that have pending events.
+     * @return Number of ready file descriptors
+     */
     size_t size() const{return revents_.size();}
-    //获取fd和事件
+    /**
+     * @brief Get events of a ready file descriptor.
+     * @param i Index of ready file descriptors list
+     * @return Readonly events object for the file descriptor
+     */
     const CEpollEvent & operator [](size_t i) const{return revents_[i];}
-    //内部状态描述，主要用于log
+    /**
+     * @brief Get readable description.
+     * @return Readable description of this object
+     */
     std::string toString() const{
         const size_t kMaxPrint = 4;
         CToString oss;
