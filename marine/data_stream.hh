@@ -1519,7 +1519,7 @@ private:
  * out << version << name << Manip::array(orders)
  *     << Manip::end(buf);  // And export the data to 'buf'
  * @endcode
- * Other variants are similar, except for the constructor and @ref Manip:end part.
+ * Other variants are similar, except for the constructors and @ref Manip::end part.
  * @tparam Data Type of underlying byte buffer
  * @note COutByteStreamBasic is not intended for direct use, try variants introduced above.
  */
