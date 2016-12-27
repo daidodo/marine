@@ -1,10 +1,31 @@
+/*
+ * Copyright (c) 2016 Zhao DAI <daidodo@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or any
+ * later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see accompanying file LICENSE.txt
+ * or <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * @file
+ * @brief [Advanced Encryption Standard](https://en.wikipedia.org/wiki/Advanced_Encryption_Standard)
+ * (AES) algorithm interface.
+ * @note [OpenSSL](https://www.openssl.org) is required.
+ * @author Zhao DAI
+ */
+
 #ifndef DOZERG_ENCRYPTOR_AES_H_20080306
 #define DOZERG_ENCRYPTOR_AES_H_20080306
-
-/*
-    Aes加密算法封装
-        CEncryptorAes
-//*/
 
 #include <string>
 #include <vector>
@@ -14,72 +35,128 @@
 
 NS_SERVER_BEGIN
 
+/**
+ * @brief A convenient interface for [Advanced Encryption Standard]
+ * (https://en.wikipedia.org/wiki/Advanced_Encryption_Standard) (AES) algorithm.
+ * @note CEncryptorAes object can @em NOT be copied.
+ */
 class CEncryptorAes
 {
     typedef unsigned char __Char;
-    static const size_t kKeyLen = 16;   //Aes只使用keystr_的前16字节
+    static const size_t kKeyLen = 16;
     CEncryptorAes(const CEncryptorAes &);   //disable copy and assignment
     CEncryptorAes & operator =(const CEncryptorAes &);
 public:
-    enum EKeyIntensity{     //Aes支持的3种密钥强度
+    /// @brief Key sizes.
+    enum EKeyIntensity{
         L128 = 128,
         L192 = 192,
         L256 = 256
     };
+    /**
+     * @brief Construct a default object.
+     * Key size defaults to @c L128.
+     * @n You need @ref setKey or @ref setKeyAndIntensity before encryption/decryption operations.
+     */
     CEncryptorAes()
         : intens_(L128)
     {}
+    /**
+     * @brief Construct an object.
+     * @param key Encryption key (password)
+     * @param intensity Key size
+     */
     CEncryptorAes(const std::string & key, EKeyIntensity intensity)
         : key_(key)
         , intens_(intensity)
     {
         updateKeys();
     }
-    //设置加密强度
+    /**
+     * @brief Set key size.
+     * @param intensity Key size
+     */
     void setIntensity(EKeyIntensity intensity){
         intens_ = intensity;
         updateKeys();
     }
-    //设置用户密钥
+    /**
+     * @brief Set encryption key (password).
+     * Password is an arbitrary string.
+     * @param key Encryption key (password)
+     */
     void setKey(const std::string & key){
         key_ = key;
         updateKeys();
     }
-    //设置用户密钥和加密强度
+    /**
+     * @brief Set encryption key (password) and key size.
+     * Password is an arbitrary string.
+     * @param key Encryption key (password)
+     * @param intensity Key size
+     */
     void setKeyAndIntensity(const std::string & key, EKeyIntensity intensity){
         key_ = key;
         intens_ = intensity;
         updateKeys();
     }
-    //return value for encrypt & decrypt
-    //    0       success
-    //    -1      param error
-    //    -2      decrypt data format error
-    //加密/解密input中从from偏移开始的数据, 结果放入output中
+    /**
+     * @name Encryption
+     * @{
+     * @brief Encrypt given data.
+     * If @c from is non-zero, first @c from bytes of @c input will @em NOT be encrypted, i.e. data
+     * between @c input.begin() and @c input.begin()+from will be copied to @c output straightly,
+     * and data between @c input.begin()+from and @c input.end() will be encrypted and append to
+     * @c output.
+     * @param[in] input Data to be encrypted
+     * @param[out] output A buffer to receive the result
+     * @param[in] from Index in @c input from where data will be encrypted
+     * @return
+     *   @li @c 0: Succeeded
+     *   @li @c -1: Invalid parameter
+     */
     int encrypt(const std::vector<char> & input, std::vector<char> & output, size_t from = 0) const{
         return encryptTemplate(input, output, from);
-    }
-    int decrypt(const std::vector<char> & input, std::vector<char> & output, size_t from = 0) const{
-        return decryptTemplate(input, output, from);
     }
     int encrypt(const std::vector<signed char> & input, std::vector<signed char> & output, size_t from = 0) const{
         return encryptTemplate(input, output, from);
     }
-    int decrypt(const std::vector<signed char> & input, std::vector<signed char> & output, size_t from = 0) const{
-        return decryptTemplate(input, output, from);
-    }
     int encrypt(const std::vector<unsigned char> & input, std::vector<unsigned char> & output, size_t from = 0) const{
         return encryptTemplate(input, output, from);
-    }
-    int decrypt(const std::vector<unsigned char> & input, std::vector<unsigned char> & output, size_t from = 0) const{
-        return decryptTemplate(input, output, from);
     }
     int encrypt(const std::string & input, std::string & output, size_t from = 0) const{
         return encryptTemplate(input, output, from);
     }
+    /**  @} */
+    /**
+     * @name Decryption
+     * @{
+     * @brief Decrypt given data.
+     * If @c from is non-zero, first @c from bytes of @c input will @em NOT be decrypted, i.e. data
+     * between @c input.begin() and @c input.begin()+from will be copied to @c output straightly,
+     * and data between @c input.begin()+from and @c input.end() will be decrypted and append to
+     * @c output.
+     * @param[in] input Data to be decrypted
+     * @param[out] output A buffer to receive the result
+     * @param[in] from Index in @c input from where data will be decrypted
+     * @return
+     *   @li @c 0: Succeeded
+     *   @li @c -1: Invalid parameter
+     *   @li @c -2: Input data format error
+     */
+    int decrypt(const std::vector<char> & input, std::vector<char> & output, size_t from = 0) const{
+        return decryptTemplate(input, output, from);
+    }
+    int decrypt(const std::vector<signed char> & input, std::vector<signed char> & output, size_t from = 0) const{
+        return decryptTemplate(input, output, from);
+    }
+    int decrypt(const std::vector<unsigned char> & input, std::vector<unsigned char> & output, size_t from = 0) const{
+        return decryptTemplate(input, output, from);
+    }
     int decrypt(const std::string & input, std::string & output, size_t from = 0) const{
         return decryptTemplate(input, output, from);
     }
+    /**  @} */
 private:
     void updateKeys(){
         std::string md5 = tools::Md5(key_);
@@ -123,10 +200,10 @@ private:
         output.resize(output.size() - inlen);
         return 0;
     }
-    std::string     key_;       //用户密钥
-    EKeyIntensity   intens_;    //密钥强度
-    AES_KEY         enKey_;     //加密密钥
-    AES_KEY         deKey_;     //解密密钥
+    std::string     key_;
+    EKeyIntensity   intens_;
+    AES_KEY         enKey_;
+    AES_KEY         deKey_;
 };
 
 NS_SERVER_END
