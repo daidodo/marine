@@ -49,7 +49,7 @@ NS_SERVER_BEGIN
  * @n CConfiguration supports 3 formats of config files:
  *
  * @par @c kFormatEqual
- * An attribute has the format of `NAME = VALUE`, which means @c = cannot be part of a attribute
+ * An attribute has the format of `NAME = VALUE`, which means @c = cannot be part of an attribute
  * name or value.
  * @n Example:
  * @code
@@ -60,7 +60,7 @@ NS_SERVER_BEGIN
  * @endcode
  *
  * @par @c kFormatSpace
- * An attribute has the format of `NAME  VALUE`, which means @c SPACE cannot be part of a attribute
+ * An attribute has the format of `NAME  VALUE`, which means @c SPACE cannot be part of an attribute
  * name or value.
  * @n Example:
  * @code
@@ -71,7 +71,7 @@ NS_SERVER_BEGIN
  * @endcode
  *
  * @par @c kFormatColon
- * An attribute has the format of `NAME : VALUE`, which means @c : cannot be part of a attribute
+ * An attribute has the format of `NAME : VALUE`, which means @c : cannot be part of an attribute
  * name or value.
  * @n Example:
  * @code
