@@ -76,7 +76,7 @@ NS_SERVER_BEGIN
  * @n Example:
  * @code
  *   # this is an example of kFormatColon conf file.
- * first attribute name : first attribute value     # first attribute description
+ * first=attribute=name : first attribute value     # first attribute description
  *   second attribute name : second attribute value
  * third_attribute_name       # with an empty value
  * @endcode
@@ -161,7 +161,7 @@ public:
      * @n If the returned integer would be smaller than @c min, @c min will be returned;
      * @n If the returned integer would be larger than @c max, @c max will be returned;
      * @param key Attribute name
-     * @param strdefault Default value if @c key is not found, @em before range checking
+     * @param ndefault Default value if @c key is not found, @em before range checking
      * @param min Lower boundary of the returned value
      * @param max Upper boundary of the returned value
      * @return Value of the attribute
@@ -239,20 +239,13 @@ private:
     void parseFormat(const std::string & line, int format){
         if(line.empty())
             return;
-        switch(format){
-            case kFormatEqual:{
-                std::string::size_type i = line.find_first_of("=");
-                content_[tools::Trim(line.substr(0, i))] = tools::Trim((std::string::npos == i ? "" : line.substr(i + 1)));
-                break;}
-            case kFormatSpace:{
-                std::string::size_type i = line.find_first_of(" \t");
-                content_[tools::Trim(line.substr(0, i))] = tools::Trim((std::string::npos == i ? "" : line.substr(i + 1)));
-                break;}
-            case kFormatColon:{
-                std::string::size_type i = line.find_first_of(":");
-                content_[tools::Trim(line.substr(0, i))] = tools::Trim((std::string::npos == i ? "" : line.substr(i + 1)));
-                break;}
-            default:;
+        const std::string sep = (format == kFormatEqual ? "="
+                           : (format == kFormatSpace ? " \t"
+                              : (format == kFormatColon ? ":" : std::string())));
+        if(!sep.empty()){
+            const size_t i = line.find_first_of(sep);
+            content_[tools::Trim(line.substr(0, i))]
+                = tools::Trim((std::string::npos == i ? std::string() : line.substr(i + 1)));
         }
     }
     //members
