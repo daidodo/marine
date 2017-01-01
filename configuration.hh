@@ -144,9 +144,9 @@ public:
         return (v.empty() ? v : tools::AbsFilename(v));
     }
     /**
-     * @name Get integer value of an attribute.
+     * @name getInt
      * @{
-     * @details These functions try to translate the value to an integer of return type.
+     * @details These functions try to translate the value to an integer.
      * @n A number of suffixes (case insensitive) could appear at the end of the value:
      * | Suffix | Explanation |
      * | --- | --- |
