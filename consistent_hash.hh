@@ -131,7 +131,6 @@ public:
         }
         addWeight(ring_.begin()->second, value_type(-1) - last, results);
     }
-private:
     void vnodes(std::vector<std::pair<value_type, value_type> > & results) const{
         results.resize(ring_.size());
         std::copy(ring_.begin(), ring_.end(), results.begin());
