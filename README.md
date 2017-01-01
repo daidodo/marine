@@ -1,4 +1,4 @@
 This is a C++ library for Linux Networking Development.
 
-Under construction ...
+Please see full documentation at https://daidodo.github.io/marine_doc
 
