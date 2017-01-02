@@ -18,7 +18,7 @@
 
 /**
  * @file
- * @brief Encapsulations for fd (file descriptor) and regular files.
+ * @brief Encapsulation for fd (file descriptor) and regular files.
  * @author Zhao DAI
  */
 
@@ -82,6 +82,7 @@ public:
      * | @ref @c CPosixShmFile::kFdType | 5 |
      * | @ref @c CEpoll::kFdType | 6 |
      * @return Type id of this object
+     * @sa kFdType
      */
     virtual int fdType() const = 0;
     /**
@@ -92,7 +93,8 @@ public:
     virtual const char * fdTypeName() const = 0;
     /**
      * @brief Get file name opened by this object.
-     * @return A file name
+     * @return A file name, or an empty string if any error occurs
+     * @sa ErrMsg
      */
     std::string filename() const{return tools::GetFilenameByFd(fd_);}
     /**
@@ -100,6 +102,7 @@ public:
      * @return
      *   @li @c -1: Failed
      *   @li others: Byte size of file
+     * @sa ErrMsg
      */
     off_t length() const{
         if(!valid())
@@ -129,6 +132,7 @@ public:
      *   @li @c true: all IO operations will be @em BLOCK by default
      *   @li @c false: all IO operations will be @em NONBLOCK by default
      * @return @c true if succeeded; @c false otherwise
+     * @sa ErrMsg
      */
     bool block(bool on){
         if(!valid())
@@ -171,6 +175,9 @@ protected:
     int fd_;
 };
 
+/**
+ * @brief Regular file operations.
+ */
 class CFile : public IFileDesc
 {
     typedef IFileDesc __MyBase;
@@ -178,49 +185,48 @@ protected:
     static const int kFlagsDefault = O_RDONLY;
     static const int kModeDefault = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 public:
-    static const int kFdType = 1; /**< type id */
-    //删除指定的文件
-    //pathname: 文件路径
+    static const int kFdType = 1; /**< Type id */
+    /**
+     * @brief Remove a file.
+     * @param pathname File pathname
+     * @return @c true if succeeded; @c false otherwise
+     * @sa ErrMsg
+     */
     static bool Unlink(const std::string & pathname){
         if(pathname.empty())
             return false;
         return (0 == ::unlink(pathname.c_str()));
     }
-    //重命名指定的文件
-    //oldfile: 旧的文件名
-    //newfile: 新的文件名
+    /**
+     * @brief Rename a file.
+     * @param oldfile Old pathname
+     * @param newfile New pathname
+     * @return @c true if succeeded; @c false otherwise
+     * @sa ErrMsg
+     */
     static bool Rename(const std::string & oldfile, const std::string & newfile){
         if(oldfile.empty() || newfile.empty())
             return false;
         return (0 == ::rename(oldfile.c_str(), newfile.c_str()));
     }
-    //构造/复制/析构
-    //pathname: 文件名
-    //flags: 参考open(2)的flags参数
-    //mode: 参考open(2)的mode参数
+    /**
+     * @brief Default constructor.
+     */
     CFile(){}
-    //TODO:unit test
+    /**
+     * @name Open or create a file
+     * @details @c mode is useful only when a new file is created.
+     * @param pathname File pathname
+     * @param flags Flags for open(2), e.g. @c O_RDONLY, @c O_WRONLY, or @c O_RDWR
+     * @param mode Mode for open(2) when new file is created, e.g. @c S_IRUSR
+     * @sa ErrMsg
+     * @{ */
     explicit CFile(const char * pathname, int flags = kFlagsDefault, mode_t mode = kModeDefault){
         this->open(pathname, flags, mode);
     }
     explicit CFile(const std::string & pathname, int flags = kFlagsDefault, mode_t mode = kModeDefault){
         this->open(pathname, flags, mode);
     }
-    CFile(const CFile & other){copyFrom(other);}
-    CFile & operator =(const CFile & other){
-        copyFrom(other);
-        return *this;
-    }
-    //返回fd类型和名称
-    int fdType() const{return kFdType;}
-    const char * fdTypeName() const{return "CFile";}
-    //打开文件
-    //pathname: 文件名
-    //flags: 参考open(2)的flags参数
-    //mode: 参考open(2)的mode参数
-    //return:
-    //  true    成功
-    //  false   失败
     //TODO: unit test
     virtual bool open(const char * pathname, int flags = kFlagsDefault, mode_t mode = kModeDefault){
         if(NULL == pathname)
@@ -233,30 +239,65 @@ public:
     virtual bool open(const std::string & pathname, int flags = kFlagsDefault, mode_t mode = kModeDefault){
         return this->open(pathname.c_str(), flags, mode);
     }
-    //从文件最多读取size字节数据放到buf里
-    //return:
-    //  -1  出错
-    //  +n  实际读出的字节数
+    /**  @} */
+    /**
+     * @name Duplicate file descriptor
+     * @details These functions do @em NOT copy file content, it only duplicates fd using dup(2).
+     * @param other Another file object
+     * @{ */
+    CFile(const CFile & other){copyFrom(other);}
+    CFile & operator =(const CFile & other){
+        copyFrom(other);
+        return *this;
+    }
+    /**  @} */
+    int fdType() const{return kFdType;}
+    /**
+     * @brief Get readable description of this object.
+     * @return @c "CFile"
+     */
+    const char * fdTypeName() const{return "CFile";}
+    /**
+     * @name Read from file
+     * @details These functions read at most @c size bytes from file.
+     * @param[out] buf A buffer to receive the data
+     * @param[in] size Size of bytes to read at most
+     * @param[in] append
+     *   @li @c true: New data will append to @c buf
+     *   @li @c false: New data will overwrite old ones in @c buf
+     * @{ */
+    /**
+     * @return
+     *   @li @c -1: Failed
+     *   @li @c 0: The end of file is reached
+     *   @li Positive number: Size of bytes actually read
+     */
     ssize_t read(char * buf, size_t size){
         if(!valid())
             return -1;
         return ::read(fd(), buf, size);
     }
-    //从文件最多读取size字节数据放到buf里
-    //append: true-追加到已有数据末尾; false-覆盖已有数据
-    //return:
-    //  true    成功
-    //  false   失败
+    /**
+     * @return @c true if succeeded; @c false otherwise
+     */
     bool read(std::vector<char> & buf, size_t size, bool append){
         return readData(buf, size, append);
     }
+    /**
+     * @return @c true if succeeded; @c false otherwise
+     */
     bool read(std::string & buf, size_t size, bool append){
         return readData(buf, size, append);
     }
-    //将buf数据写入文件
-    //return:
-    //  -1  出错
-    //  +n  实际写入的字节数
+    /**  @} */
+    /**
+     * @name Write to file
+     * @param buf A buffer to write
+     * @param size Bytes size of @c buf
+     * @return
+     *   @li @c -1: Failed
+     *   @li Non-negative number: Size of bytes actually written
+     * @{ */
     ssize_t write(const char * buf, size_t size){
         if(!valid())
             return -1;
@@ -268,14 +309,19 @@ public:
     ssize_t write(const std::string & buf){
         return this->write(&buf[0], buf.size());
     }
-    //设置读写位置
-    //whence:
-    //  SEEK_SET    相对于文件起点偏移offset
-    //  SEEK_CUR    相对于当前位置偏移offset
-    //  SEEK_END    相对于文件末尾偏移offset
-    //return:
-    //  true    成功
-    //  false   失败
+    /**  @} */
+    /**
+     * @name Set cursor.
+     * @details See lseek(2) for more information.
+     * @param offset Offset to move the cursor
+     * @param whence Directive for @c offset, showing as follows:
+     * | Directive | Explanation |
+     * | --- | --- |
+     * | SEEK_SET | The offset is set to @c offset bytes |
+     * | SEEK_CUR | The offset is set to its current location plus @c offset bytes |
+     * | SEEK_END | The offset is set to the size of the file plus @c offset bytes |
+     * @return @c true if succeeded; @c false otherwise
+     * @{ */
     bool seek(off_t offset, int whence){
         if(!valid())
             return false;
@@ -288,6 +334,7 @@ public:
         return ((off_t)-1 != ::lseek64(fd(), offset, whence));
     }
 #endif
+    /**  @} */
     //获取读写位置（相对于文件起点）
     //return:
     //  -1  错误
