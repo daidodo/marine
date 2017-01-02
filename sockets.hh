@@ -3,7 +3,7 @@
 
 /*
     对网络socket的简单包装，隐藏了IPv4和IPv6协议相关性
-        CSocket         网络socket基类
+        ISocket         网络socket基类
         CUdpSocket      udp socket
         CListenSocket   tcp服务器端监听socket
         CTcpConnSocket  tcp客户端socket
@@ -14,14 +14,14 @@
 
 NS_SERVER_BEGIN
 
-class CSocket : public IFileDesc
+class ISocket : public IFileDesc
 {
 protected:
     //目前支持的socket类型
     enum EType{kTcp, kUdp};
     CSockAddr peer_;    //opt peer addr
 public:
-    CSocket(){}
+    ISocket(){}
     //获取本端地址
     CSockAddr hostAddr() const{
         CSockAddr addr;
@@ -208,7 +208,7 @@ public:
 protected:
     //初始化
     //family: 协议族(AF_INET/AF_INET6等)
-    CSocket(int family, EType type){
+    ISocket(int family, EType type){
         getSock(family, type);
     }
     bool getSock(int family, EType type){
@@ -254,7 +254,7 @@ private:
     }
 };
 
-class CUdpSocket : public CSocket
+class CUdpSocket : public ISocket
 {
 public:
     static const int kFdType = 4;
@@ -262,9 +262,9 @@ public:
     //初始化
     //family: 协议族(AF_INET/AF_INET6等)
     explicit CUdpSocket(int family)
-        : CSocket(family, kUdp)
+        : ISocket(family, kUdp)
     {}
-    bool getSock(int family){return CSocket::getSock(family, kUdp);}
+    bool getSock(int family){return ISocket::getSock(family, kUdp);}
     //返回fd类型和名称
     int fdType() const{return kFdType;}
     const char * fdTypeName() const{return "CUdpSocket";}
@@ -288,13 +288,13 @@ public:
         return true;
     }
     //接收数据
-    //from: 返回对端地址，如果不需要，请调用CSocket::recvData
+    //from: 返回对端地址，如果不需要，请调用ISocket::recvData
     //sz: 期望收到的数据大小，单位字节
     //waitAll: 是否加MSG_WAITALL标志
     //return:
     //  <0  失败
     //  >=0 实际收到的数据大小，单位字节
-    using CSocket::recvData;
+    using ISocket::recvData;
     ssize_t recvData(CSockAddr & from, char * buf, size_t sz, bool waitAll = false){
         if(NULL == buf || !valid())
             return -1;
@@ -326,18 +326,18 @@ public:
         return ret;
     }
     //发送数据
-    //to: 指定对端地址，如果无效，则调用CSocket::sendData
+    //to: 指定对端地址，如果无效，则调用ISocket::sendData
     //return:
     //  <0  失败
     //  >=0 实际发送的数据大小，单位字节
-    using CSocket::sendData;
+    using ISocket::sendData;
     ssize_t sendData(const CSockAddr & to, const char * buf, size_t sz){
         if(!valid() || NULL == buf)
             return -1;
         if(!sz)
             return 0;
         if(!to.valid())
-            return CSocket::sendData(buf, sz);
+            return ISocket::sendData(buf, sz);
         return ::sendto(fd(), buf, sz, MSG_NOSIGNAL, to.sockaddr(),to.socklen());
     }
     template<class BufT>
@@ -350,7 +350,7 @@ public:
 
 class CListenSocket;
 
-class CTcpConnSocket : public CSocket
+class CTcpConnSocket : public ISocket
 {
     friend class CListenSocket;
 public:
@@ -359,9 +359,9 @@ public:
     //family: 协议族(AF_INET/AF_INET6等)
     CTcpConnSocket(){}
     explicit CTcpConnSocket(int family)
-        : CSocket(family, kTcp)
+        : ISocket(family, kTcp)
     {}
-    bool getSock(int family){return CSocket::getSock(family, kTcp);}
+    bool getSock(int family){return ISocket::getSock(family, kTcp);}
     //返回fd类型和名称
     int fdType() const{return kFdType;}
     const char * fdTypeName() const{return "CTcpConnSocket";}
@@ -398,7 +398,7 @@ public:
     }
 };
 
-class CListenSocket : public CSocket
+class CListenSocket : public ISocket
 {
 public:
     static const int kQueueDefault = 1024;
@@ -407,9 +407,9 @@ public:
     //family: 协议族(AF_INET/AF_INET6等)
     CListenSocket(){}
     explicit CListenSocket(int family)
-        : CSocket(family, kTcp)
+        : ISocket(family, kTcp)
     {}
-    bool getSock(int family){return CSocket::getSock(family, kTcp);}
+    bool getSock(int family){return ISocket::getSock(family, kTcp);}
     //返回fd类型和名称
     int fdType() const{return kFdType;}
     const char * fdTypeName() const{return "CListenSocket";}
