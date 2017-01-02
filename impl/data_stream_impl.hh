@@ -45,13 +45,6 @@ class CDataStreamBase
 public:
     /** Byte order of the underlying data buffer, default Net Byte Order. */
     static const bool kByteOrderDefault = true;
-#ifndef DOX_UNDOCUMENT_FLAG
-    explicit CDataStreamBase(bool netByteOrder = kByteOrderDefault, int code = 0)
-        : status_(code)
-        , hostByteOrder_(tools::HostByteOrder())
-        , dataByteOrder_(bo(netByteOrder))
-    {}
-#endif
     /**
      * @brief Set error status.
      * If status is @em NOT 0, all packing/unpacking operations will fail.
@@ -133,25 +126,12 @@ public:
      *   @li @c false: Big endian
      */
     bool littleEndian() const{return dataByteOrder_;}
-#ifndef DOX_UNDOCUMENT_FLAG
-    std::string toString() const{
-        CToString oss;
-        oss<<"{status_="<<status_
-            <<", hostByteOrder_="<<(hostByteOrder_ ? "LittleEndian" : "BigEndian")
-            <<", dataByteOrder_="<<(dataByteOrder_ ? "LittleEndian" : "BigEndian");
-        if(!stubs_.empty()){
-            oss<<", stubs_={";
-            for(size_t i = 0;i < stubs_.size();++i){
-                if(i)
-                    oss<<", ";
-                oss<<stubs_[i];
-            }
-            oss<<'}';
-        }
-        oss<<'}';
-        return oss.str();
-    }
 protected:
+    explicit CDataStreamBase(bool netByteOrder = kByteOrderDefault, int code = 0)
+        : status_(code)
+        , hostByteOrder_(tools::HostByteOrder())
+        , dataByteOrder_(bo(netByteOrder))
+    {}
     bool needReverse() const{return (hostByteOrder_ != dataByteOrder_);}
     void pushStub(size_t pos){
         if(good())
@@ -191,7 +171,23 @@ protected:
         stubs_.clear();
         return true;
     }
-#endif
+    std::string toString() const{
+        CToString oss;
+        oss<<"{status_="<<status_
+            <<", hostByteOrder_="<<(hostByteOrder_ ? "LittleEndian" : "BigEndian")
+            <<", dataByteOrder_="<<(dataByteOrder_ ? "LittleEndian" : "BigEndian");
+        if(!stubs_.empty()){
+            oss<<", stubs_={";
+            for(size_t i = 0;i < stubs_.size();++i){
+                if(i)
+                    oss<<", ";
+                oss<<stubs_[i];
+            }
+            oss<<'}';
+        }
+        oss<<'}';
+        return oss.str();
+    }
 private:
     bool bo(bool net){return (net ? false : hostByteOrder_);}
     //fields
