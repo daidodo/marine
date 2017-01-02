@@ -1,3 +1,27 @@
+/*
+ * Copyright (c) 2016 Zhao DAI <daidodo@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or any
+ * later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see accompanying file LICENSE.txt
+ * or <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * @file
+ * @brief Thread-safe container for fd (file descriptor) related data.
+ * @author Zhao DAI
+ */
+
 #ifndef DOZERG_FD_DATA_MAP_H_20130228
 #define DOZERG_FD_DATA_MAP_H_20130228
 
@@ -31,6 +55,11 @@
 
 NS_SERVER_BEGIN
 
+/**
+ * @brief
+ * @tparam T
+ * @tparam LockT
+ */
 template<class T, class LockT = CSpinLock>
 class CFdDataMap
 {
