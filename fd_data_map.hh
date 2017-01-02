@@ -18,7 +18,7 @@
 
 /**
  * @file
- * @brief Thread-safe container for fd (file descriptor) related data.
+ * @brief Containers for fd (file descriptor) related data.
  * @author Zhao DAI
  */
 
@@ -29,9 +29,75 @@
 #include <cassert>
 #include "mutex.hh"
 #include "shared_ptr.hh"
-#include "fd_map.hh"
 
 NS_SERVER_BEGIN
+
+/**
+ * @brief A hash table for fd (file descriptor) related data.
+ * Key @em MUST be file descriptors, which are non-negative and of type @c int. In fact the file
+ * descriptor acts as an index to an underlying container of values. Because the number of files a
+ * process can open is limited, e.g. 1024 (it is modifiable), there's no chance for the underlying
+ * container to grow unexpectedly. So do @em NOT use CFdMap as a generic @c int to value hash table.
+ * @n The underlying container is @c vector by default, but you can specify it as you like.
+ * @tparam T Value type
+ * @tparam Container Container type, default to @c std::vector<T>
+ * @note CFdMap is @em NOT thread safe.
+ * @sa CFdDataMap
+ */
+template<class T, class Container = std::vector<T> >
+struct CFdMap
+{
+    typedef Container   container_type;
+    typedef T           value_type;
+    typedef T &         reference;
+    typedef const T &   const_reference;
+    /**
+     * @brief Initialize this object.
+     * @c capacity is used as a hint to the number of key/value pairs this object wants to hold. But
+     * CFdMap is free to expand as needed.
+     * @param capacity Initial reserved room for key/value pairs
+     */
+    explicit CFdMap(size_t capacity = 100){map_.reserve(capacity);}
+    /**
+     * @brief Get current capacity.
+     * @return Current capacity
+     */
+    size_t capacity() const{return map_.capacity();}
+    /**
+     * @brief Set current capacity.
+     * @param sz New capacity
+     */
+    void capacity(size_t sz){map_.reserve(sz);}
+    /**
+     * @brief Get value for an fd.
+     * @param fd A file descriptor
+     * @return Writable reference to the value for @c fd
+     */
+    reference operator [](int fd){
+        assert(fd >= 0);
+        if(size_t(fd) >= map_.size())
+            map_.resize(fd + 1);
+        return map_[fd];
+    }
+    /**
+     * @brief Get value for an fd.
+     * @param fd A file descriptor
+     * @return Readonly reference to the value for @c fd
+     */
+    const_reference operator [](int fd) const{
+        //use value_type() to fix compile error for POD
+        static const value_type kDef = value_type();
+        if(fd >= 0 && size_t(fd) < map_.size())
+            return map_[fd];
+        return kDef;
+    }
+    /**
+     * @brief Clear all key/value pairs.
+     */
+    void clear(){map_.clear();}
+private:
+    container_type map_;
+};
 
 /**
  * @brief Thread-safe hash table for fd (file descriptor) related data.
@@ -45,10 +111,11 @@ NS_SERVER_BEGIN
  * are several advantages. Firstly, it avoids copying issue as mentioned; secondly, it simplifies
  * lifetime control for each value among multiple threads; And finally, it is efficient for the
  * underlying @c vector to expand.
- * @n CFdDataMap is thread safe. You can specify any lock type you want, as long as it cooperates with
- * CGuard.
+ * @n CFdDataMap is thread safe and implemented on top of CFdMap. You can specify any lock type you
+ * want, as long as it cooperates with CGuard.
  * @tparam T Value type
  * @tparam LockT Lock type, default to CSpinLock
+ * @sa CFdMap
  */
 template<class T, class LockT = CSpinLock>
 class CFdDataMap
