@@ -12,6 +12,7 @@
 #include <elf.h>
 #include <link.h>
 #include <cxxabi.h>         //abi::__cxa_demangle
+#include <unistd.h>         //system
 #include "../file.hh"
 #include "debug.hh"
 
@@ -38,6 +39,7 @@ public:
         , len_(0)
         , dlen_(0)
         , cur_(0)
+        , eof_(false)
     {}
     CReader(CFile & file, char * buf, size_t len)
         : file_(&file)
@@ -45,6 +47,7 @@ public:
         , len_(len)
         , dlen_(0)
         , cur_(0)
+        , eof_(false)
     {}
     void setFile(CFile & file){file_ = &file;}
     void setBuf(char * buf, size_t len){
@@ -56,7 +59,7 @@ public:
                 && NULL != buf_
                 && len_ > 0
                 && dlen_ <= len_
-                && cur_ <= dlen_);
+                && (cur_ < dlen_ || (cur_ == dlen_ && !eof_)));
     }
     const char * data() const{return buf_ + cur_;}
     bool getChar(char & c){
@@ -171,6 +174,8 @@ private:
             ssize_t ret = file_->read(buf_ + dlen_, len_ - dlen_);
             if(ret < 0)
                 return false;
+            else if(ret == 0)
+                eof_ = true;
             dlen_ += ret;
         }
         return true;
@@ -187,6 +192,7 @@ private:
     size_t len_;
     size_t dlen_;   //data length
     size_t cur_;
+    bool eof_;
 };
 
 struct CMapsLine
@@ -246,14 +252,18 @@ public:
             return;
         //get section entry count (e_shoff is already checked in getSectionEntryOfIndex())
         entryCount_ = (head_.e_shnum > 0 ? head_.e_shnum : init_.sh_size);
-        //search in regular symbol table
-        if(searchInSymTable(SHT_SYMTAB))
+        //search in regular and dynamic symbol tables
+        if(!searchInSymTable(SHT_SYMTAB) && !searchInSymTable(SHT_DYNSYM))
             return;
-        //search in dynamic symbol table
-        searchInSymTable(SHT_DYNSYM);
+        //try to obtain source file name and line number
+        sourceAndLine();
+        //de-mangle C++ signature
+        demangling();
     }
-    const char * symbolName() const{return ('\0' != demagling_[0] ? demagling_ : symname_);}
+    const char * symbolName() const{return ('\0' != demangling_[0] ? demangling_ : symname_);}
     const char * fileName() const{return filename_;}
+    const char * sourceFileName() const{return srcfilename_;}
+    unsigned int lineNo() const{return line_;}
     bool getStackRange(){
         //open maps
         CFile maps;
@@ -302,13 +312,14 @@ public:
     uint64_t mapOffset() const{return mapOffset_;}
 private:
     void reset(void * addr){
-        filename_[0] = symname_[0] = demagling_[0] = '\0';
+        filename_[0] = symname_[0] = demangling_[0] = srcfilename_[0] = '\0';
         pc_ = reinterpret_cast<uintptr_t>(addr);
         mapOffset_ = 0;
         stackStart_ = stackEnd_ = 0;
         entryCount_ = 0;
         file_.close();
         memset(&head_, 0, sizeof head_);
+        line_ = 0;
     }
     bool searchMaps(){
         //open maps
@@ -396,7 +407,6 @@ private:
                         symname_[0] = '\0';
                         return false;
                     }
-                    demagling();
                     return true;
                 }
             }
@@ -426,19 +436,63 @@ private:
         }
         return false;
     }
-    void demagling(){
+    void demangling(){
         int status = 0;
-        size_t len = sizeof demagling_;
+        size_t len = sizeof demangling_;
         //NOTE:
-        //If len is not large enough, demagling_ will be *free()'ed* and realloc(), that is not we want.
-        abi::__cxa_demangle(symname_, demagling_, &len, &status);
+        //If len is not large enough, demangling_ will be *free()'ed* and realloc(), that is not we want.
+        abi::__cxa_demangle(symname_, demangling_, &len, &status);
         if(0 != status)
-            demagling_[0] = '\0';
+            demangling_[0] = '\0';
+    }
+    void sourceAndLine(){
+        const char * const kTmp = "/tmp/marine_signal_source_line.tmp";
+        { //use 'objdump' to generate line table
+            char * p = srcfilename_ + 1;
+            int len = sizeof srcfilename_ - 1;
+            SAFE_PRINT(p, len, "objdump --dwarf=decodedline %s | grep 0x | sort -g -k 3 > %s", filename_, kTmp);
+            if(0 != ::system(srcfilename_ + 1))
+                return;
+        }
+        //parse line table
+        // to_string.hh                                  55            0x404340
+        const uint64_t off = pc_ - (isInDynamic() ? mapOffset() : 0);
+        const size_t sz = sizeof srcfilename_ / 2;
+        char * const prevfile = srcfilename_ + sz;
+        CFile tmp;
+        if(!tmp.open(kTmp, O_RDONLY))
+            return;
+        CReader reader(tmp, demangling_ + 1, sizeof demangling_ - 1);
+        for(int line = 0, prev = 0;reader.valid();){
+            uint64_t addr = 0;
+            if(reader.getBuf(srcfilename_, sz, " \t") > 0  // to_string.hh
+                    && reader.skipSpace()
+                    && reader.getDec(line)   // 55
+                    && reader.skipSpace()
+                    && reader.skip(2)        // 0x
+                    && reader.getHex(addr)){ // 404340
+                if(off <= addr){
+                    if(off < addr){ // previous
+                        ::strncpy(srcfilename_, prevfile, sz);
+                        line_ = prev;
+                    }else           // current
+                        line_ = line;
+                    break;
+                }
+            }
+            ::strncpy(prevfile, srcfilename_, sz);
+            prev = line;
+            reader.skipUntil("\n");
+            reader.skip(1); // '\n'
+        }
+        if(line_ == 0)
+            srcfilename_[0] = '\0';
     }
     //fields:
     char filename_[1024];
     char symname_[1024];
-    char demagling_[1024];
+    char srcfilename_[1024];
+    char demangling_[1024];
     ElfW(Ehdr) head_;
     ElfW(Shdr) init_;
     ElfW(Shdr) symtab_;
@@ -451,6 +505,7 @@ private:
     uint64_t stackEnd_;
     size_t entryCount_;
     CFile file_;
+    unsigned int line_;
 };
 
 NS_SERVER_END

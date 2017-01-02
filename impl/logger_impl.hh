@@ -413,7 +413,7 @@ private:
                     SAFE_PRINT(p, len, "#%d", i);
                     if(params.sym_.isInDynamic()){
                         //dynamic link symbol format:
-                        //"#level [base+offset] name from file"
+                        //"#LEVEL [BASE+OFFSET] NAME from FILE"
                         SAFE_PRINT(p, len, " [0x%llx", (long long)params.sym_.mapOffset());
                         uint64_t pc = reinterpret_cast<uintptr_t>(addr);
                         if(pc >= params.sym_.mapOffset()){
@@ -423,17 +423,19 @@ private:
                         }
                     }else{
                         //normal symbol format:
-                        //"#level [address] name from file"
+                        //"#LEVEL [ADDRESS] NAME from FILE"
                         SAFE_PRINT(p, len, " [%p]", addr);
                     }
                     const char * const sname = params.sym_.symbolName();
                     const char * const fname = params.sym_.fileName();
-                    if(NULL != sname && '\0' != *sname){
+                    const char * const sfname = params.sym_.sourceFileName();
+                    const unsigned int line = params.sym_.lineNo();
+                    if(NULL != sname && '\0' != *sname)
                         SAFE_PRINT(p, len, " %s", sname);
-                    }
-                    if(NULL != fname && '\0' != *fname){
+                    if(NULL != fname && '\0' != *fname)
                         SAFE_PRINT(p, len, " from %s", fname);
-                    }
+                    if(NULL != sfname && '\0' != *sfname && line != 0)
+                        SAFE_PRINT(p, len, " (%s:%u)", sfname, line);
                     if(params.again_ > 1 && int(from + i) < cnt)
                         SAFE_PRINT_L(p, len, ".");
                     else
