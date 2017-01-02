@@ -1,11 +1,29 @@
+/*
+ * Copyright (c) 2016 Zhao DAI <daidodo@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or any
+ * later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see accompanying file LICENSE.txt
+ * or <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * @file
+ * @brief Encapsulations for fd (file descriptor) and regular files.
+ * @author Zhao DAI
+ */
+
 #ifndef DOZERG_FILE_H_20120119
 #define DOZERG_FILE_H_20120119
-
-/*
-    对fd和文件读写进行封装
-        IFileDesc       fd接口封装，所有fd形式对象的基类
-        CFile           文件对象封装
-//*/
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -19,35 +37,70 @@
 
 NS_SERVER_BEGIN
 
+/**
+ * @brief Abstract interface of fd (file descriptor).
+ */
 class IFileDesc
 {
 public:
     static const int kInvalidFd = -1;
-    //获取上次出错信息
+    /**
+     * @brief Get latest @c errno and error message.
+     * @return Description of latest error
+     */
     static std::string ErrMsg(){return tools::ErrorMsg(errno);}
-    //构造/析构
+    /**
+     * @brief Construct a default object.
+     */
     IFileDesc():fd_(kInvalidFd){}
+    /**
+     * @brief Destroy this object.
+     * Release any resources if necessary.
+     */
     virtual ~IFileDesc(){this->close();}
-    //是否有效
+    /**
+     * @brief Test if this object is a valid file descriptor.
+     * @return @c true if it's valid; @c false otherwise
+     */
     bool valid() const{return (fd_ >= 0);}
-    //获取fd
+    /**
+     * @brief Get fd (file descriptor).
+     * @return fd
+     */
     int fd() const{return fd_;}
-    //返回fd类型和名称，由子类实现
-    //return:
-    //  CFile::kFdType(1)
-    //  CTcpConnSocket::kFdType(2)
-    //  CListenSocket::kFdType(3)
-    //  CUdpSocket::kFdType(4)
-    //  CPosixShmFile::kFdType(5)
-    //  CEpoll::kFdType(6)
+    /**
+     * @brief Get type id of this object.
+     * Any concrete class derived from IFileDesc shall define a distinct type id named @c kFdType,
+     * so it's possible to check this id and determine what the object really is.
+     * @n Currently following `kFdType`s are defined:
+     * | Type Id | Value |
+     * | ---: | --- |
+     * | @ref @c CFile::kFdType | 1 |
+     * | @ref @c CTcpConnSocket::kFdType | 2 |
+     * | @ref @c CListenSocket::kFdType | 3 |
+     * | @ref @c CUdpSocket::kFdType | 4 |
+     * | @ref @c CPosixShmFile::kFdType | 5 |
+     * | @ref @c CEpoll::kFdType | 6 |
+     * @return Type id of this object
+     */
     virtual int fdType() const = 0;
+    /**
+     * @brief Get type name of this object.
+     * Any concrete class derived from IFileDesc must give a readable name to identify itself.
+     * @return Readable type name
+     */
     virtual const char * fdTypeName() const = 0;
-    //返回打开的文件名
+    /**
+     * @brief Get file name opened by this object.
+     * @return A file name
+     */
     std::string filename() const{return tools::GetFilenameByFd(fd_);}
-    //获取文件字节大小
-    //return:
-    //  -1      出错
-    //  其他    文件字节大小
+    /**
+     * @brief Get byte size of file opened by this object.
+     * @return
+     *   @li @c -1: Failed
+     *   @li others: Byte size of file
+     */
     off_t length() const{
         if(!valid())
             return -1;
@@ -56,10 +109,12 @@ public:
             return -1;
         return st.st_size;
     }
-    //文件是否已经被删除
-    //return:
-    //  false   未被删除，或者出错
-    //  true    已被删除
+    /**
+     * @brief Test if file is deleted.
+     * A file could be removed even if you're reading or writing it. So it's necessary to test this
+     * status, or you may lost all changes to the file.
+     * @return @c true if file is deleted; @c false otherwise
+     */
     bool deleted() const{
         if(!valid())
             return false;
@@ -68,10 +123,13 @@ public:
             return false;
         return (0 == st.st_nlink);
     }
-    //设置是否阻塞
-    //return:
-    //  true    设置成功
-    //  false   设置失败
+    /**
+     * @brief Set block/non-block for operations.
+     * @param on
+     *   @li @c true: all IO operations will be @em BLOCK by default
+     *   @li @c false: all IO operations will be @em NONBLOCK by default
+     * @return @c true if succeeded; @c false otherwise
+     */
     bool block(bool on){
         if(!valid())
             return false;
@@ -85,14 +143,19 @@ public:
             return false;
         return true;
     }
-    //关闭fd
+    /**
+     * @brief Close this fd.
+     */
     void close(){
         if(valid()){
             ::close(fd_);
             fd_ = kInvalidFd;
         }
     }
-    //内部状态描述，主要用于log
+    /**
+     * @brief Get readable description of this object.
+     * @return Description string
+     */
     virtual std::string toString() const{
         CToString oss;
         oss<<"{fd_="<<fd_<<"("<<fdTypeName()<<")"
@@ -100,7 +163,7 @@ public:
         return oss.str();
     }
 private:
-    //NOTE: 子类可以自定义复制行为
+    //NOTE: Subclasses could implement its own copy and assignment operations
     IFileDesc(const IFileDesc & other);
     IFileDesc & operator =(const IFileDesc & other);
 protected:
@@ -115,7 +178,7 @@ protected:
     static const int kFlagsDefault = O_RDONLY;
     static const int kModeDefault = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 public:
-    static const int kFdType = 1;
+    static const int kFdType = 1; /**< type id */
     //删除指定的文件
     //pathname: 文件路径
     static bool Unlink(const std::string & pathname){
