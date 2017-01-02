@@ -402,7 +402,7 @@ private:
             }
             i += num;
         }
-        return 0;
+        return false;
     }
     bool getSectionEntryOfType(ElfW(Word) type, ElfW(Shdr) * entry){
         if(NULL == entry)
