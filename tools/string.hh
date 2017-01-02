@@ -63,6 +63,8 @@ namespace tools
     {
         if(!fname)
             return NULL;
+        if(*fname == '\0')
+            return "";  // compatible with other overloads
         return ::basename(const_cast<char *>(fname));
     }
 
