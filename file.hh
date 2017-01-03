@@ -217,8 +217,8 @@ public:
      * @name Open or create a file
      * @details @c mode is useful only when a new file is created.
      * @param pathname File pathname
-     * @param flags Flags for open(2), e.g. @c O_RDONLY, @c O_WRONLY, or @c O_RDWR
-     * @param mode Mode for open(2) when new file is created, e.g. @c S_IRUSR
+     * @param flags Flags for @c open(2), e.g. @c O_RDONLY, @c O_WRONLY, or @c O_RDWR
+     * @param mode Mode for @c open(2) when new file is created, e.g. @c S_IRUSR
      * @sa ErrMsg
      * @{ */
     explicit CFile(const char * pathname, int flags = kFlagsDefault, mode_t mode = kModeDefault){
@@ -242,7 +242,7 @@ public:
     /**  @} */
     /**
      * @name Duplicate file descriptor
-     * @details These functions do @em NOT copy file content, it only duplicates fd using dup(2).
+     * @details These functions do @em NOT copy file content, it only duplicates fd using @c dup(2).
      * @param other Another file object
      * @{ */
     CFile(const CFile & other){copyFrom(other);}
@@ -265,6 +265,7 @@ public:
      * @param[in] append
      *   @li @c true: New data will append to @c buf
      *   @li @c false: New data will overwrite old ones in @c buf
+     * @sa ErrMsg
      * @{ */
     /**
      * @return
@@ -297,6 +298,7 @@ public:
      * @return
      *   @li @c -1: Failed
      *   @li Non-negative number: Size of bytes actually written
+     * @sa ErrMsg
      * @{ */
     ssize_t write(const char * buf, size_t size){
         if(!valid())
@@ -311,8 +313,8 @@ public:
     }
     /**  @} */
     /**
-     * @name Set cursor.
-     * @details See lseek(2) for more information.
+     * @name Set cursor
+     * @details See @c lseek(2) for more information.
      * @param offset Offset to move the cursor
      * @param whence Directive for @c offset, showing as follows:
      * | Directive | Explanation |
@@ -321,6 +323,7 @@ public:
      * | SEEK_CUR | The offset is set to its current location plus @c offset bytes |
      * | SEEK_END | The offset is set to the size of the file plus @c offset bytes |
      * @return @c true if succeeded; @c false otherwise
+     * @sa ErrMsg
      * @{ */
     bool seek(off_t offset, int whence){
         if(!valid())
@@ -335,10 +338,14 @@ public:
     }
 #endif
     /**  @} */
-    //获取读写位置（相对于文件起点）
-    //return:
-    //  -1  错误
-    //  >=0 读写位置
+    /**
+     * @name Get cursor
+     * @{
+     * @return
+     *   @li @c -1: Failed
+     *   @li Non-negative number: Current cursor position
+     * @sa ErrMsg
+     */
     off_t tell() const{
         if(!valid())
             return -1;
@@ -351,23 +358,37 @@ public:
         return ::lseek64(fd(), 0, SEEK_CUR);
     }
 #endif
+    /**  @} */
 #ifdef __HAS_FTRUNCATE
-    //将文件截断或扩展到指定字节长度
-    //length: 最后的字节长度
-    //注意：文件必须可写
+    /**
+     * @brief Truncate file.
+     * The file must be writable.
+     * @param length Left byte size after  truncation
+     * @return @c true if succeeded; @c false otherwise
+     * @sa ErrMsg
+     */
     bool truncate(off_t length){
         if(!valid())
             return false;
         return (0 == ::ftruncate(fd(), length));
     }
 #endif
-    //删除文件
+    /**
+     * @brief Remove file.
+     * @return @c true if succeeded; @c false otherwise
+     * @sa ErrMsg
+     */
     virtual bool unlink(){
         if(!valid())
             return false;
         return Unlink(__MyBase::filename());
     }
-    //重命名文件
+    /**
+     * @brief Rename file.
+     * @param newfile New pathname for the file
+     * @return @c true if succeeded; @c false otherwise
+     * @sa ErrMsg
+     */
     bool rename(const std::string & newfile){
         if(!valid() || newfile.empty())
             return false;
@@ -376,7 +397,6 @@ public:
             return false;
         return Rename(fname, newfile);
     }
-    //内部状态描述，主要用于log
     std::string toString() const{
         CToString oss;
         oss<<"{IFileDesc="<<IFileDesc::toString()
