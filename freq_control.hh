@@ -25,12 +25,6 @@
 #ifndef DOZERG_FREQ_CONTROL_H_20120224
 #define DOZERG_FREQ_CONTROL_H_20120224
 
-/*
-    频率控制类，线程不安全
-        CFreqControl        适用于高频控制，大于1 Hz
-        CWideFreqControl    适用于所有频率情况，包括低于1 Hz情况
-//*/
-
 #include "tools/time.hh"     //MonoTimeUs
 
 NS_SERVER_BEGIN
@@ -157,16 +151,44 @@ private:
     uint64_t time_;      //last generate() time
 };
 
+/**
+ * @brief Rate limiting for any frequency, including ones less than 1Hz.
+ * For any given frequency @c F:
+ * @li If `F >= 1`, CWideFreqControl generates @c F tokens per second;
+ * @li If `0 < F < 1`, CWideFreqControl generate 1 token in every @c 1/F seconds;
+ * @li Otherwise, CWideFreqControl doesn't generate any token.
+ *
+ * Although CWideFreqControl is more powerful than CFreqControl, it has a simpler interface. After
+ * initialization, you can only @ref get 1 token a time, and don't need to @a generate, because it
+ * has been done in @ref get. And there is no way to @a check or @a overdraw tokens, because that
+ * might indicate a bad design of logic oftentimes.
+ * @n CWideFreqControl has a fixed bucket size of `(F + 1)`.
+ * @n All these considerations make CWideFreqControl simple and efficient enough for real-world
+ * projects even with float-point operations.
+ */
 struct CWideFreqControl
 {
+    /**
+     * @{
+     * @brief Initialize this object.
+     * @param freq A non-negative real number denoting frequency
+     * @note You can @ref init this object again to change frequency.
+     */
     explicit CWideFreqControl(double freq = 0){
         init(freq);
     }
     void init(double freq){
         time_ = tools::MonoTimeUs();
         token_ = 0;
-        freq_ = freq;
+        freq_ = std::max(0., freq);
     }
+    /**  @} */
+    /**
+     * @brief Get 1 token.
+     * @return
+     *   @li @c true: Succeeded. One token is removed from bucket;
+     *   @li @c false: Failed. No token is removed.
+     */
     bool get(){
         if(getAux())
             return true;
