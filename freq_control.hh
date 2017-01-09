@@ -1,3 +1,27 @@
+/*
+ * Copyright (c) 2016 Zhao DAI <daidodo@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or any
+ * later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see accompanying file LICENSE.txt
+ * or <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * @file
+ * @brief Tools for rate limiting, bandwidth control and burstiness suppression.
+ * @author Zhao DAI
+ */
+
 #ifndef DOZERG_FREQ_CONTROL_H_20120224
 #define DOZERG_FREQ_CONTROL_H_20120224
 
@@ -11,8 +35,22 @@
 
 NS_SERVER_BEGIN
 
+/**
+ * @brief Rate limiting for high frequency (>1Hz) jobs.
+ * CFreqControl is a convenient tool for rate limiting, based on [Token Bucket]
+ * (https://en.wikipedia.org/wiki/Token_bucket) algorithm.
+ * @n Given a frequency @c F, CFreqControl generates @c F tokens to bucket per second. Each token
+ * represents a job. When there is no token in the bucket, no new job should be created.
+ * @n The size of bucket is important for burstiness suppression. It denotes the maximum number of
+ * jobs created at once. In case of network transmission control for example, a proper bucket size
+ * leads to smooth traffic flow in despite of request bursts.
+ */
 struct CFreqControl
 {
+    /**
+     * @brief Default constructor.
+     * You need to call @ref init before you can use this object.
+     */
     CFreqControl()
         : freq_(0)
         , buckSz_(0)
@@ -20,8 +58,13 @@ struct CFreqControl
         , delta_(0)
         , time_(0)
     {}
-    //freq: 频率(次/s)
-    //bucketSz: 令牌桶大小
+    /**
+     * @{
+     * @brief Initialize this object.
+     * @param freq A positive integer denoting frequency
+     * @param bucketSz Max number of tokens the bucket can hold
+     * @note You can @ref init this object again to change frequency and bucket size.
+     */
     CFreqControl(size_t freq, size_t bucketSz)
         : freq_(0)
         , buckSz_(0)
@@ -31,7 +74,6 @@ struct CFreqControl
     {
         init(freq, bucketSz);
     }
-    //初始化令牌桶，可以重复初始化，修改频率和桶大小
     void init(size_t freq, size_t bucketSz){
         if(!freq_){
             token_ = delta_ = 0;
@@ -40,9 +82,16 @@ struct CFreqControl
         freq_ = freq;
         buckSz_ = bucketSz;
     }
-    //生产令牌
-    //nowUs: 当前机器时间(tools::MonoTimeUs(), 微秒)
-    void generate(uint64_t nowUs){
+    /**  @} */
+    /**
+     * @brief Generate tokens.
+     * @param nowUs Current monotonic time, obtained from @ref tools::MonoTimeUs(), can be omitted
+     */
+    void generate(uint64_t nowUs = 0){
+        if(!valid())
+            return;
+        if(nowUs < time_)
+            nowUs = tools::MonoTimeUs();
         if(nowUs > time_){
             delta_ += freq_ * (nowUs - time_);
             if(delta_ < 0){
@@ -58,34 +107,54 @@ struct CFreqControl
         }
         time_ = nowUs;
     }
-    void generate(){return generate(tools::MonoTimeUs());}
-    //检查令牌是否足够
-    //need: 需要的令牌数目
+    /**
+     * @brief Check if there are enough tokens.
+     * @param need Number of tokens needed
+     * @return @c true if there are at least @c need tokens in bucket; @c false otherwise
+     */
     bool check(size_t need) const{return (token_ >= 0 && size_t(token_) >= need);}
-    //获取当前令牌数
+    /**
+     * @brief Get number of tokens in bucket.
+     * This function may return a negative number when tokens have been overdrawn.
+     * @return
+     *   @li Positive number: Number of tokens in bucket;
+     *   @li Negative number: Number of tokens overdrawn;
+     * @sa overdraw
+     */
     ssize_t token() const{return token_;}
-    //扣除令牌
-    //如果令牌数不够，不会进行扣除操作，并返回false，
+    /**
+     * @brief Get tokens.
+     * @param need Number of tokens needed
+     * @return
+     *   @li @c true: Succeeded. @c need tokens are removed from bucket;
+     *   @li @c false: Failed. No tokens are removed from bucket;
+     */
     bool get(size_t need = 1){
         if(token_ < 0 || size_t(token_) < need)
             return false;
         token_ -= need;
         return true;
     }
-    //透支令牌，可能导致token_为负
-    //如果need过大(overflow)，不会进行扣除操作，并返回false
-    bool overdraft(size_t need){
-        if(ssize_t(need) < 0)
+    /**
+     * @brief Overdraw tokens.
+     * @param need Number of tokens needed
+     * @return
+     *   @li @c true: Succeeded. @c need tokens are removed or overdrawn from bucket;
+     *   @li @c false: Failed. No tokens are removed from bucket;
+     */
+    bool overdraw(size_t need){
+        if(!valid() || ssize_t(need) < 0)
             return false;
         token_ -= need;
         return true;
     }
 private:
+    bool valid() const {return freq_ > 0;}
     size_t freq_;
     size_t buckSz_;
     ssize_t token_;
     ssize_t delta_;
-    uint64_t time_;      //上次generate的时间(微秒)
+    uint64_t time_;      //last generate() time
 };
 
 struct CWideFreqControl
